@@ -389,6 +389,13 @@ static void renderGeom(const mjvGeom* geom, int mode, const float* headpos,
     glTranslatef(0, 0, 4);
     glCallList(con->baseBuiltin + mjrCONE);
     break;
+  
+  case mjGEOM_CONE:                           // cone
+    glScalef(size[0], size[1], size[2]);
+    glRotatef(180.0f, 1.0f, 0.0f, 0.0f);
+    glTranslatef(0.0, 0.0, -size[2]);
+    glCallList(con->baseBuiltin + mjrCONE);
+    break;
 
   case mjGEOM_LINE:                           // line
     glLineWidth(size[0]*con->lineWidth);
