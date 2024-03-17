@@ -110,6 +110,8 @@ typedef enum mjtGeom_ {           // type of geometric shape
   mjGEOM_ARROW1,                  // arrow without wedges
   mjGEOM_ARROW2,                  // arrow in both directions
   mjGEOM_CONE,                    // cone
+  mjGEOM_CONE2,                   // cone2
+  mjGEOM_PYRAMID,                 // pyramid
   mjGEOM_LINE,                    // line
   mjGEOM_LINEBOX,                 // box with line edges
   mjGEOM_FLEX,                    // flex

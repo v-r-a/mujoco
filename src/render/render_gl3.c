@@ -397,6 +397,63 @@ static void renderGeom(const mjvGeom* geom, int mode, const float* headpos,
     glCallList(con->baseBuiltin + mjrCONE);
     break;
 
+  case mjGEOM_CONE2:                           // cone2
+    glTranslatef(0.0, 0.0, size[2]);  
+    glScalef(size[0], size[1], size[2]);
+    glRotatef(180.0f, 1.0f, 0.0f, 0.0f);
+    glCallList(con->baseBuiltin + mjrCONE);
+    break;
+
+  case mjGEOM_PYRAMID:                        // pyramid
+    glBegin(GL_TRIANGLES);
+    glVertex3f(0, 0, 0);
+    glVertex3f(size[0], 0, size[2]);
+    glVertex3f(0, size[1], size[2]);
+    glEnd();
+    glBegin(GL_TRIANGLES);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, size[1], size[2]);
+    glVertex3f(-size[1],0,size[2]);
+    glEnd();
+    glBegin(GL_TRIANGLES);
+    glVertex3f(0, 0, 0);
+    glVertex3f(-size[1],0,size[2]);
+    glVertex3f(0, -size[1], size[2]);
+    glEnd();
+    glBegin(GL_TRIANGLES);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, -size[1], size[2]);
+    glVertex3f(size[0], 0, size[2]);
+    glEnd();
+    glLineWidth(1.5*con->lineWidth);
+    lighting = glIsEnabled(GL_LIGHTING);
+    glDisable(GL_LIGHTING);
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(0, 0, 0);
+    glVertex3f(size[0], 0, size[2]);
+    glVertex3f(0, size[1], size[2]);
+    glEnd();
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, size[1], size[2]);
+    glVertex3f(-size[1],0,size[2]);
+    glEnd();
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(0, 0, 0);
+    glVertex3f(-size[1],0,size[2]);
+    glVertex3f(0, -size[1], size[2]);
+    glEnd();
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, -size[1], size[2]);
+    glVertex3f(size[0], 0, size[2]);
+    glEnd();
+    glLineWidth(con->lineWidth);
+    if (lighting) {
+      glEnable(GL_LIGHTING);
+    }
+    break;    
+
   case mjGEOM_LINE:                           // line
     glLineWidth(size[0]*con->lineWidth);
     lighting = glIsEnabled(GL_LIGHTING);
