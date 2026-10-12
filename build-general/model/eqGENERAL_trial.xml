@@ -1,0 +1,73 @@
+<mujoco model="two_links_check">
+  <compiler angle="radian"/>
+  <option integrator="RK4" timestep="0.002" jacobian="dense"
+          cone="elliptic" solver="Newton" tolerance="1e-10">
+    <flag island="disable" sleep="disable"/>
+  </option>
+
+  <default>
+    <joint type="hinge" axis="0 0 1" frictionloss="0.005"/>
+    <!-- Disable collisions -->
+    <geom type="capsule" size="0.01" density="800" contype="0" conaffinity="0"/>
+    <site size="0.012" rgba="1 0.8 0 1"/>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="160" elevation="-45"/>
+  </visual>
+  <statistic center="0.1 0.15 0.05" extent="0.65"/>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <!-- <geom name="floor" size="0.5 0.5 0.05" type="plane" material="grid"/> -->
+
+    <!-- Ground pivots A=(0,0,.05), D=(0,.3,.05). -->
+    <geom name="ground_link" fromto="0 0 .05  0 .3 .05" rgba=".3 .3 .3 1"/>
+    <site name="pivot_A" pos="0 0 .05"/>
+    <site name="world_hinge" pos="0 .3 .05" zaxis="0 0 1"/>
+
+    <body name="link1" pos="0 .3 .05">
+      <freejoint/>
+      <geom name="bar_AB" fromto="0 0 0  .2 0 0"
+            rgba="0 .5 .5 .8"/> 
+      <geom name="block" type="box" size="0.02 0.02 0.02" pos="0.1 0 0" rgba="0 .5 .5 .8" />
+      <site name="link1_anchor" pos="0 0 0"/>
+  </body>
+
+  </worldbody>
+
+  <!-- GENERAL CHECK -->
+  <equality>
+    <general name="trial"
+            site1="world_hinge"
+            site2="link1_anchor"
+            lock="0 1 1 1 0 1"
+            torquescale="5 5 5"/>
+  </equality>
+
+  <!-- WELD -->
+  <!-- <equality>
+    <general name="connection"
+            site1="world_hinge"
+            site2="link1_anchor"
+            lock="1 1 1 1 1 1"
+            torquescale="5 5 5"/>
+  </equality> -->
+
+  <!-- SLIDE X/Y/Z -->
+  <!-- <equality>
+    <general name="connection"
+            site1="world_hinge"
+            site2="link1_anchor"
+            lock="1 0 1 1 1 1"
+            torquescale="5 5 5"/>
+  </equality> -->
+
+</mujoco>
