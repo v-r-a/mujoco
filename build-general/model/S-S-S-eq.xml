@@ -1,0 +1,71 @@
+<mujoco model="four_bar_eqHINGE_2">
+  <compiler angle="radian"/>
+  <option integrator="implicit" timestep="0.002" jacobian="dense"
+          cone="elliptic" solver="Newton" tolerance="1e-10">
+    <flag island="disable" sleep="disable"/>
+  </option>
+
+  <default>
+    <joint type="hinge" axis="0 0 1" frictionloss="0.005"/>
+    <!-- Disable collisions so adjoining capsules do not repel each other. -->
+    <geom type="capsule" size="0.01" density="800" contype="0" conaffinity="0"/>
+    <site size="0.012" rgba="1 0.8 0 1"/>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="160" elevation="-45"/>
+  </visual>
+  <statistic center="0.1 0.15 0.05" extent="0.65"/>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <!-- <geom name="floor" size="0.5 0.5 0.05" type="plane" material="grid"/> -->
+
+    <!-- Ground pivots A=(0,0,.05), D=(0,.3,.05). -->
+    <geom name="ground_link" fromto="0 0 .05  0 .3 .05" rgba=".3 .3 .3 1"/>
+    <site name="pivot_A" pos="0 0 .05"/>
+    <site name="world_hinge" pos="0 .3 .05" zaxis="0 0 1"/>
+
+    <!-- Initial rectangle: A to B (+X), B to C (+Y), C to D (-X).
+         Fixed body rotations encode this pose, so qpos0 is [0,0,0]. -->
+    <body name="link1" pos="0 0 .05">
+      <joint name="j1" type="ball"/>
+      <geom name="bar_AB" fromto="0 0 0  .2 0 0" rgba="0 .5 .5 .8"/>
+
+      <body name="link2" pos=".2 0 0" quat="0.7071067811865476 0 0 0.7071067811865476">
+        <joint name="j2" type="ball"/>
+        <site name="pivot_B"/>
+        <geom name="bar_BC" fromto="0 0 0  .3 0 0" rgba=".8 .6 .2 .8"/>
+
+        <body name="link3" pos=".3 0 0" quat="0.7071067811865476 0 0 0.7071067811865476">
+          <joint name="j3" type="ball"/>
+          <site name="pivot_C"/>
+          <geom name="bar_CD" fromto="0 0 0  .2 0 0" rgba=".5 0 .5 .8"/>
+          <site name="link3_end" pos=".2 0 0" zaxis="0 0 1"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <!-- Fourth revolute joint: link3 tip to world, using the custom equality. -->
+  <equality>
+    <general name="j4_closure" site1="link3_end" site2="world_hinge"
+            lock="1 1 1 1 1 0"
+           torquescale="10 10 10"/>
+  </equality>
+
+  <!-- <actuator>
+    <motor name="motor_torque" joint="j1" ctrllimited="true" ctrlrange="-0.1 0.1"/>
+  </actuator> -->
+
+  <!-- <keyframe>
+    <key name="initial_rectangle" qpos="0 0 0" ctrl="0"/>
+  </keyframe> -->
+</mujoco>
