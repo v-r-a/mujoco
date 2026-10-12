@@ -219,7 +219,8 @@ typedef enum mjtEq {              // type of equality constraint
   mjEQ_FLEX,                      // fix all edge lengths of a flex
   mjEQ_FLEXVERT,                  // fix all vertex lengths of a flex
   mjEQ_FLEXSTRAIN,                // constrain strain of a trilinear/quadratic flex (B-bar)
-  mjEQ_DISTANCE                   // unsupported, will cause an error if used
+  mjEQ_DISTANCE,                  // unsupported, will cause an error if used
+  mjEQ_GENERAL                   // selected relative site coordinates in the site1 frame
 } mjtEq;
 
 

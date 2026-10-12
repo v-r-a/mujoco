@@ -194,8 +194,9 @@ inline constexpr mjMap equality_map[] = {
   {"flexvert",    mjEQ_FLEXVERT},
   {"flexstrain",  mjEQ_FLEXSTRAIN},
   {"distance",    mjEQ_DISTANCE},
+  {"general",     mjEQ_GENERAL},
 };
-inline constexpr int equality_sz = 8;
+inline constexpr int equality_sz = 9;
 
 // enum texture
 inline constexpr mjMap texture_map[] = {

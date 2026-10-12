@@ -27,6 +27,7 @@
 #include "engine/engine_core_smooth.h"
 #include "engine/engine_memory.h"
 #include "engine/engine_sleep.h"
+#include "engine/engine_support.h"
 #include "engine/engine_util_blas.h"
 #include "engine/engine_util_errmem.h"
 #include "engine/engine_util_misc.h"
@@ -706,6 +707,60 @@ void mj_instantiateEquality(const mjModel* m, mjData* d) {
       size = 6;
       break;
 
+    case mjEQ_GENERAL: {           // selected relative site coordinates, expressed in site1
+      int site1 = id[0], site2 = id[1];
+      int body1 = m->site_bodyid[site1], body2 = m->site_bodyid[site2];
+      const mjtNum* frame = d->site_xmat + 9*site1;
+      mjtNum delta[3], local[3], q1inv[4], q2[4], qrel[4];
+      mju_sub3(delta, d->site_xpos+3*site2, d->site_xpos+3*site1);
+      mju_mulMatTVec3(local, frame, delta);
+      mju_mulQuat(q1inv, d->xquat+4*body1, m->site_quat+4*site1);
+      mju_negQuat(q1inv, q1inv);
+      mju_mulQuat(q2, d->xquat+4*body2, m->site_quat+4*site2);
+      mju_mulQuat(qrel, q1inv, q2);
+
+      // Obtain both individual Jacobians: mj_jacDifPair's simple-body shortcut
+      // only fills differences, but the moving frame also needs J_omega1.
+      NV = issparse ? mj_mergeChain(m, chain, body1, body2, /*flg_skipcommon=*/0) : nv;
+      if (issparse) {
+        mj_jacSparse(m, d, jac[0], jac[0]+3*NV, d->site_xpos+3*site1,
+                     body1, NV, chain, /*flg_skipcommon=*/0);
+        mj_jacSparse(m, d, jac[1], jac[1]+3*NV, d->site_xpos+3*site2,
+                     body2, NV, chain, /*flg_skipcommon=*/0);
+      } else {
+        mj_jac(m, d, jac[0], jac[0]+3*NV, d->site_xpos+3*site1, body1);
+        mj_jac(m, d, jac[1], jac[1]+3*NV, d->site_xpos+3*site2, body2);
+      }
+
+      for (int j=0; j < NV; j++) {
+        mjtNum w1[3], dw[3], dp[3], cross[3], column[3], tmp[4], dq[4];
+        for (int k=0; k < 3; k++) {
+          w1[k] = jac[0][(3+k)*NV+j];
+          dw[k] = jac[1][(3+k)*NV+j] - w1[k];
+          dp[k] = jac[1][k*NV+j] - jac[0][k*NV+j];
+        }
+        // d(R1' delta) = R1' (d(delta) + delta x d(theta1)).
+        mju_cross(cross, delta, w1);
+        mju_addTo3(dp, cross);
+        mju_mulMatTVec3(column, frame, dp);
+        mju_mulQuatAxis(tmp, q1inv, dw);
+        mju_mulQuat(dq, tmp, q2);
+        int row = 0;
+        for (int k=0; k < 6; k++) {
+          if (data[k]) {
+            jacdif[row++*NV+j] = k < 3 ? column[k] : 0.5*data[k+3]*dq[k-2];
+          }
+        }
+      }
+      for (int k=0; k < 6; k++) {
+        if (data[k]) {
+          cpos[size++] = k < 3 ? local[k] : data[k+3]*qrel[k-2];
+        }
+      }
+      mju_copy(jac[0], jacdif, size*NV);
+      break;
+    }
+
     case mjEQ_JOINT:                // couple joint values with cubic
     case mjEQ_TENDON:               // couple tendon lengths with cubic
       // get scalar positions and their Jacobians
@@ -1034,6 +1089,68 @@ void mj_instantiateEquality(const mjModel* m, mjData* d) {
   mj_freeStack(d);
 }
 
+// GENERAL acceleration bias, with zero generalized acceleration.
+// Uses world angular velocities; mju_derivQuat expects local angular velocity.
+static void generalJdotv(const mjModel* m, mjData* d, int id, mjtNum bias[6]) {
+  int nv = m->nv;
+  int s1 = m->eq_obj1id[id], s2 = m->eq_obj2id[id];
+  int b1 = m->site_bodyid[s1], b2 = m->site_bodyid[s2];
+  const mjtNum* data = m->eq_data + mjNEQDATA*id;
+  mjtNum vel1[6], vel2[6], acc1[6], acc2[6];
+
+  mj_markStack(d);
+  mjtNum* jp = mjSTACKALLOC(d, 3*nv, mjtNum);
+  mjtNum* jr = mjSTACKALLOC(d, 3*nv, mjtNum);
+  mj_jacDot(m, d, jp, jr, d->site_xpos+3*s1, b1);
+  mju_mulMatVec(acc1, jr, d->qvel, 3, nv);
+  mju_mulMatVec(acc1+3, jp, d->qvel, 3, nv);
+  mj_jacDot(m, d, jp, jr, d->site_xpos+3*s2, b2);
+  mju_mulMatVec(acc2, jr, d->qvel, 3, nv);
+  mju_mulMatVec(acc2+3, jp, d->qvel, 3, nv);
+  mj_objectVelocity(m, d, mjOBJ_SITE, s1, vel1, 0);
+  mj_objectVelocity(m, d, mjOBJ_SITE, s2, vel2, 0);
+
+  // R1' (delta_ddot - alpha1 x delta - 2 omega1 x delta_dot
+  //       + omega1 x (omega1 x delta)).
+  mjtNum delta[3], dv[3], da[3], tmp3[3], cross[3];
+  mju_sub3(delta, d->site_xpos+3*s2, d->site_xpos+3*s1);
+  mju_sub3(dv, vel2+3, vel1+3);
+  mju_sub3(da, acc2+3, acc1+3);
+  mju_cross(cross, acc1, delta);
+  mju_subFrom3(da, cross);
+  mju_cross(cross, vel1, dv);
+  mju_addToScl3(da, cross, -2);
+  mju_cross(tmp3, vel1, delta);
+  mju_cross(cross, vel1, tmp3);
+  mju_addTo3(da, cross);
+  mju_mulMatTVec3(bias, d->site_xmat+9*s1, da);
+
+  // Differentiate 0.5 * conj(q1) * (0, omega2-omega1) * q2.
+  mjtNum q1inv[4], q2[4], q1invdot[4], q2dot[4], omega2[4] = {0};
+  mjtNum dw[3], dalpha[3], tmp[4], t1[4], t2[4], t3[4];
+  mju_mulQuat(q1inv, d->xquat+4*b1, m->site_quat+4*s1);
+  mju_negQuat(q1inv, q1inv);
+  mju_mulQuat(q2, d->xquat+4*b2, m->site_quat+4*s2);
+  mju_mulQuatAxis(q1invdot, q1inv, vel1);
+  mju_scl(q1invdot, q1invdot, -0.5, 4);
+  mju_copy3(omega2+1, vel2);
+  mju_mulQuat(q2dot, omega2, q2);
+  mju_scl(q2dot, q2dot, 0.5, 4);
+  mju_sub3(dw, vel2, vel1);
+  mju_sub3(dalpha, acc2, acc1);
+  mju_mulQuatAxis(tmp, q1invdot, dw);
+  mju_mulQuat(t1, tmp, q2);
+  mju_mulQuatAxis(tmp, q1inv, dalpha);
+  mju_mulQuat(t2, tmp, q2);
+  mju_mulQuatAxis(tmp, q1inv, dw);
+  mju_mulQuat(t3, tmp, q2dot);
+  for (int k=0; k < 3; k++) {
+    bias[3+k] = 0.5*data[6+k]*(t1[1+k] + t2[1+k] + t3[1+k]);
+  }
+  mj_freeStack(d);
+}
+
+
 // subtract Jdot*v correction from result vector for equality constraints
 void mj_Jdotv(const mjModel* m, mjData* d, mjtNum* result) {
   int nv = m->nv, ne = d->ne;
@@ -1059,6 +1176,18 @@ void mj_Jdotv(const mjModel* m, mjData* d, mjtNum* result) {
   while (row < ne) {
     int eq_id = d->efc_id[row];
     mjtEq type = (mjtEq) m->eq_type[eq_id];
+
+    if (type == mjEQ_GENERAL) {
+      mjtNum bias[6];
+      generalJdotv(m, d, eq_id, bias);
+      const mjtNum* data = m->eq_data + mjNEQDATA*eq_id;
+      for (int k=0; k < 6; k++) {
+        if (data[k]) {
+          result[row++] -= bias[k];
+        }
+      }
+      continue;
+    }
 
     // connect or weld: compute Jdot*v for translational part
     if (type == mjEQ_CONNECT || type == mjEQ_WELD) {
@@ -1768,6 +1897,22 @@ void mj_diagApprox(const mjModel* m, mjData* d) {
         weldcnt = (weldcnt + 1) % 6;
         break;
 
+      case mjEQ_GENERAL: {
+        b1 = m->site_bodyid[m->eq_obj1id[id]];
+        b2 = m->site_bodyid[m->eq_obj2id[id]];
+        const mjtNum* data = m->eq_data + mjNEQDATA*id;
+        // Match CONNECT/WELD's inverse-weight approximation, respecting the
+        // original coordinate of each packed row (not its packed index).
+        for (int k=0; k < 6; k++) {
+          if (data[k]) {
+            dA[i++] = m->body_invweight0[2*b1 + (k >= 3)] +
+                      m->body_invweight0[2*b2 + (k >= 3)];
+          }
+        }
+        i--;
+        break;
+      }
+
       case mjEQ_JOINT:
       case mjEQ_TENDON:
         // object 1 contribution
@@ -2083,6 +2228,12 @@ static void getposdim(const mjModel* m, const mjData* d, int i, mjtNum* pos, int
     } else if (m->eq_type[id] == mjEQ_CONNECT) {
       *dim = 3;
       *pos = mju_norm(d->efc_pos+i, 3);
+    } else if (m->eq_type[id] == mjEQ_GENERAL) {
+      *dim = 0;
+      for (int k=0; k < 6; k++) {
+        *dim += m->eq_data[mjNEQDATA*id+k] != 0;
+      }
+      *pos = mju_norm(d->efc_pos+i, *dim);
     }
     break;
   default:
@@ -2474,8 +2625,15 @@ static int mj_ne(const mjModel* m, mjData* d, int* nnz) {
                          /*flg_skipcommon=*/0);
       break;
 
+    case mjEQ_GENERAL:
     case mjEQ_WELD:
-      size = 6;
+      if (m->eq_type[i] == mjEQ_GENERAL) {
+        for (int k=0; k < 6; k++) {
+          size += m->eq_data[mjNEQDATA*i+k] != 0;
+        }
+      } else {
+        size = 6;
+      }
       if (!nnz) {
         break;
       }

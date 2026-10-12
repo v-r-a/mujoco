@@ -1986,6 +1986,39 @@
                :ref:`torquescale<equality-weld-torquescale>`
 
 
+      .. dropdown:: :ref:`general<equality-general>` |*|
+
+         .. grid:: 2 3 4 4
+            :gutter: 0
+
+            .. grid-item::
+               :ref:`name<equality-general-name>`
+
+            .. grid-item::
+               :ref:`class<equality-general-class>`
+
+            .. grid-item::
+               :ref:`active<equality-general-active>`
+
+            .. grid-item::
+               :ref:`solref<equality-general-solref>`
+
+            .. grid-item::
+               :ref:`solimp<equality-general-solimp>`
+
+            .. grid-item::
+               :ref:`site1<equality-general-site1>`
+
+            .. grid-item::
+               :ref:`site2<equality-general-site2>`
+
+            .. grid-item::
+               :ref:`lock<equality-general-lock>`
+
+            .. grid-item::
+               :ref:`torquescale<equality-general-torquescale>`
+
+
       .. dropdown:: :ref:`joint<equality-joint>` |*|
 
          .. grid:: 2 3 4 4

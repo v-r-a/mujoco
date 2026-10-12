@@ -4053,7 +4053,8 @@ EMSCRIPTEN_BINDINGS(mujoco_bindings) {
     .value("mjEQ_FLEX", mjEQ_FLEX)
     .value("mjEQ_FLEXVERT", mjEQ_FLEXVERT)
     .value("mjEQ_FLEXSTRAIN", mjEQ_FLEXSTRAIN)
-    .value("mjEQ_DISTANCE", mjEQ_DISTANCE);
+    .value("mjEQ_DISTANCE", mjEQ_DISTANCE)
+    .value("mjEQ_GENERAL", mjEQ_GENERAL);
   enum_<mjtEvent>("mjtEvent")
     .value("mjEVENT_NONE", mjEVENT_NONE)
     .value("mjEVENT_MOVE", mjEVENT_MOVE)

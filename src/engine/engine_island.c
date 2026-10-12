@@ -301,7 +301,8 @@ static void treeIterInit(const mjModel* m, const mjData* d, int i, mjTreeIter* i
   // connect or weld constraints
   else if (efc_type == mjCNSTR_EQUALITY &&
            (m->eq_type[efc_id] == mjEQ_CONNECT ||
-            m->eq_type[efc_id] == mjEQ_WELD)) {
+            m->eq_type[efc_id] == mjEQ_WELD ||
+            m->eq_type[efc_id] == mjEQ_GENERAL)) {
     int b1 = m->eq_obj1id[efc_id];
     int b2 = m->eq_obj2id[efc_id];
 

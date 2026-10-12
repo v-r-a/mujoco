@@ -4958,6 +4958,81 @@ of the other body, without any joint elements in the child body. Weld constraint
    :at:`torquescale` can be interpreted as the diameter of this glue patch.
 
 
+.. _equality-general:
+
+:el-prefix:`equality/` |-| **general** |*|
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Constrains selected relative coordinates of two sites. All axes are expressed in the **moving site1 frame**.
+Let :math:`p_i, R_i, q_i` denote the world position, rotation matrix, and unit quaternion of site :math:`i`.
+The six candidate residuals, in translation-then-rotation order, are
+
+.. math::
+
+   e_t = R_1^T(p_2-p_1), \qquad
+   e_r = \operatorname{diag}(s_x,s_y,s_z)\operatorname{vec}(q_1^{-1}\otimes q_2).
+
+Only components selected by :at:`lock` generate equality rows. Their targets are zero; the initial relative pose is not
+captured as a reference. Set the site placements to define the desired connection. A site under :el:`worldbody` can
+provide a fixed reference. Body references, :at:`anchor`, and :at:`relpose` are not supported.
+
+The rotational residual is the vector part of the relative quaternion, :math:`\mathbf{k}\sin(\phi/2)`, rather than
+Euler angles or instantaneous angular-velocity components. Locking only rotational z imposes
+:math:`(q_1^{-1}\otimes q_2)_z=0`: it defines a two-dimensional orientation surface, not two sequential hinge rotations.
+The quaternion residual has the same large-angle limitations as :ref:`weld<equality-weld>`. As with other equality
+constraints, enforcement is soft, and selected rows may be redundant with other constraints or joints.
+
+.. _equality-general-name:
+.. _equality-general-class:
+.. _equality-general-active:
+.. _equality-general-solref:
+.. _equality-general-solimp:
+
+:at:`name`, :at:`class`, :at:`active`, :at:`solref`, :at:`solimp`
+   Same as :ref:`connect<equality-connect>`. One shared :at:`solref` and :at:`solimp` applies to all selected rows;
+   the impedance distance is the norm of their residual vector. These attributes can be inherited from the existing
+   :ref:`equality defaults<default-equality>` element. The mask and torque scales are specified on the individual
+   :el:`general` element, not in defaults.
+
+.. _equality-general-site1:
+.. _equality-general-site2:
+
+:at:`site1`, :at:`site2`: :at-val:`string, required`
+   Two distinct site names. Site1 defines the coordinate frame of the mask. Site orientations affect the constraint
+   even when only some translations are locked. Moving either site's local pose updates the connection at runtime.
+
+.. _equality-general-lock:
+
+:at:`lock`: :at-val:`int(6), required`
+   Binary mask in the order ``tx ty tz rx ry rz``. Exactly six values, each 0 or 1, are required; at least one must be 1.
+   A 1 selects a residual component; a 0 omits it. The number of rows is the number of ones.
+
+   ===============  ==========================================================
+   Mask             Geometric constraint
+   ===============  ==========================================================
+   ``1 1 1 0 0 0``  Coincident origins (CONNECT-like)
+   ``1 1 1 1 1 1``  Coincident frames (WELD-like)
+   ``1 1 1 1 1 0``  Hinge about the common site z-axis
+   ``1 1 0 1 1 1``  Slide along site1's z-axis
+   ``1 1 0 1 1 0``  Slide and rotation along/about the common z-axis
+   ===============  ==========================================================
+
+   These describe the zero-residual geometry. Finite-error soft dynamics need not match CONNECT/WELD, since the
+   translational residual is expressed in a moving frame.
+
+.. _equality-general-torquescale:
+
+:at:`torquescale`: :at-val:`real(3), "1 1 1"`
+   Per-axis scales :math:`s_x,s_y,s_z`, with units of length, multiplying the rotational residuals and their derivatives.
+   Values must be finite and nonnegative, and strictly positive on locked rotational axes. Use :at:`lock` to remove a
+   row; the scale of an unlocked rotational axis is unused. This is a three-vector for :el:`general`; the existing
+   :ref:`weld torquescale<equality-weld-torquescale>` remains scalar.
+
+For the C specification API, set ``type=mjEQ_GENERAL``, ``objtype=mjOBJ_SITE``, and the two site names in ``name1`` and
+``name2``. Store the mask in ``data[0:6]`` and the three scales in ``data[6:9]``; explicitly initialize all three scales
+(normally to 1). ``data[9:11]`` is reserved. The same layout is used in the compiled ``mjModel.eq_data``.
+
+
 .. _equality-joint:
 
 :el-prefix:`equality/` |-| **joint** |*|

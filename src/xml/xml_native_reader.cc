@@ -1041,6 +1041,20 @@ void mjXReader::OneEquality(XMLElement* elem, mjsEquality* equality) {
         ReadAttr(elem, "torquescale", 1, equality->data + 10, text);
       } break;
 
+      case mjEQ_GENERAL: {
+        ReadAttrTxt(elem, "site1", name1, true);
+        ReadAttrTxt(elem, "site2", name2, true);
+        equality->objtype = mjOBJ_SITE;
+        // GENERAL payload: lock[6], torquescale[3], reserved[2].
+        // This payload is not inherited from the shared equality defaults.
+        mjuu_zerovec(equality->data, mjNEQDATA);
+        // Read as doubles so fractional masks are rejected by the compiler,
+        // rather than truncated by an integer parser.
+        ReadAttr(elem, "lock", 6, equality->data, text, true);
+        equality->data[6] = equality->data[7] = equality->data[8] = 1;
+        ReadAttr(elem, "torquescale", 3, equality->data + 6, text);
+      } break;
+
       case mjEQ_JOINT:
         ReadAttrTxt(elem, "joint1", name1, true);
         ReadAttrTxt(elem, "joint2", name2);

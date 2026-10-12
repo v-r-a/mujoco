@@ -2618,6 +2618,44 @@ void mj_rnePostConstraint(const mjModel* m, mjData* d) {
       i += m->eq_type[id] == mjEQ_WELD ? 6 : 3;
       break;
 
+    case mjEQ_GENERAL: {
+      int s1 = m->eq_obj1id[id], s2 = m->eq_obj2id[id];
+      int b1 = m->site_bodyid[s1], b2 = m->site_bodyid[s2];
+      mjtNum lambda[6] = {0}, q1[4], q2inv[4], tmp[4], torque[4];
+      for (int j=0; j < 6; j++) {
+        if (eq_data[j]) {
+          lambda[j] = d->efc_force[i++];
+        }
+      }
+      for (int j=0; j < 3; j++) {
+        lambda[3+j] *= eq_data[6+j];
+      }
+
+      // Body2 wrench: F = R1 lambda_t;
+      // T = 0.5 vec(q1 * (0, scaled_lambda_r) * conj(q2)).
+      mju_mulMatVec3(cfrc+3, d->site_xmat+9*s1, lambda);
+      mju_mulQuat(q1, d->xquat+4*b1, m->site_quat+4*s1);
+      mju_mulQuat(q2inv, d->xquat+4*b2, m->site_quat+4*s2);
+      mju_negQuat(q2inv, q2inv);
+      mju_mulQuatAxis(tmp, q1, lambda+3);
+      mju_mulQuat(torque, tmp, q2inv);
+      mju_scl3(cfrc, torque+1, 0.5);
+      if (b2) {
+        addExternal(m, d, b2, d->site_xpos+3*s2, cfrc, 1);
+      }
+
+      // Body1 receives -F and -T - (p2-p1) x F. The extra torque is
+      // the adjoint of the moving-reference-frame term in the Jacobian.
+      mjtNum delta[3], moment[3];
+      mju_sub3(delta, d->site_xpos+3*s2, d->site_xpos+3*s1);
+      mju_cross(moment, delta, cfrc+3);
+      mju_addTo3(cfrc, moment);
+      if (b1) {
+        addExternal(m, d, b1, d->site_xpos+3*s1, cfrc, -1);
+      }
+      break;
+    }
+
     case mjEQ_JOINT:
       // increment 1 row
       i++;

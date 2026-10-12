@@ -56,7 +56,7 @@ NOT_TABLE_DRIVEN = {
     'pid', 'damper', 'cylinder', 'muscle', 'adhesion', 'dcmotor',
     'actuator_plugin',
     # equality subtypes: read shared equality_base + per-type refs
-    'connect', 'weld', 'equality_joint', 'equality_tendon',
+    'connect', 'weld', 'equality_general', 'equality_joint', 'equality_tendon',
     'equality_flex', 'flexvert', 'flexstrain',
     # sensors with custom reading logic
     'rangefinder', 'distance', 'user', 'normal', 'fromto',

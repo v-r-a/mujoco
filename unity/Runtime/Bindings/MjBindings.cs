@@ -253,6 +253,7 @@ public enum mjtEq : int{
   mjEQ_FLEXVERT = 5,
   mjEQ_FLEXSTRAIN = 6,
   mjEQ_DISTANCE = 7,
+  mjEQ_GENERAL = 8,
 }
 public enum mjtWrap : int{
   mjWRAP_NONE = 0,

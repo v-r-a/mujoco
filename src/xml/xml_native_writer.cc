@@ -752,6 +752,14 @@ void mjXWriter::OneEquality(XMLElement* elem, const mjCEquality* equality, mjCDe
         WriteAttr(elem, "torquescale", 1, equality->data + 10, def->Equality().spec.data + 10);
         break;
 
+      case mjEQ_GENERAL: {
+        WriteAttrTxt(elem, "site1", mjs_getString(equality->name1));
+        WriteAttrTxt(elem, "site2", mjs_getString(equality->name2));
+        WriteAttr(elem, "lock", 6, equality->data);
+        double scale_default[3] = {1, 1, 1};
+        WriteAttr(elem, "torquescale", 3, equality->data + 6, scale_default);
+      } break;
+
       case mjEQ_JOINT:
         WriteAttrTxt(elem, "joint1", mjs_getString(equality->name1));
         WriteAttrTxt(elem, "joint2", mjs_getString(equality->name2));

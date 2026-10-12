@@ -2437,6 +2437,10 @@ void mjCModel::SetSizes() {
       nemax += 3;
     } else if (equalities_[i]->type == mjEQ_WELD) {
       nemax += 7;
+    } else if (equalities_[i]->type == mjEQ_GENERAL) {
+      for (int j = 0; j < 6; j++) {
+        nemax += equalities_[i]->data[j] == 1;
+      }
     } else {
       nemax += 1;
     }

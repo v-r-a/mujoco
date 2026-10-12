@@ -2996,7 +2996,8 @@ static void addConstraintGeoms(const mjModel* m, mjData* d, const mjvOption* vop
   for (int i=0; i < m->neq; i++) {
     int is_weld = m->eq_type[i] == mjEQ_WELD;
     int is_connect = m->eq_type[i] == mjEQ_CONNECT;
-    if (d->eq_active[i] && (is_connect || is_weld)) {
+    int is_general = m->eq_type[i] == mjEQ_GENERAL;
+    if (d->eq_active[i] && (is_connect || is_weld || is_general)) {
       // compute endpoints in global coordinates
       mjtNum vec[3], end[3];
       mjtNum *xmat_j, *xmat_k;

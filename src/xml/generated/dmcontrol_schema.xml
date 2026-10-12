@@ -2117,6 +2117,19 @@
             <attribute name="torquescale" type="float"/>
           </attributes>
         </element>
+        <element name="general" repeated="true" namespace="equality">
+          <attributes>
+            <attribute name="name" type="identifier"/>
+            <attribute name="class" type="reference" reference_namespace="default"/>
+            <attribute name="active" type="keyword" valid_values="false true" default="true"/>
+            <attribute name="solref" type="array" array_type="float" array_size="2" default="0.02 1"/>
+            <attribute name="solimp" type="array" array_type="float" array_size="5" default="0.9 0.95 0.001 0.5 2"/>
+            <attribute name="site1" type="reference" reference_namespace="site" required="true"/>
+            <attribute name="site2" type="reference" reference_namespace="site" required="true"/>
+            <attribute name="lock" type="array" array_type="int" array_size="6" required="true"/>
+            <attribute name="torquescale" type="array" array_type="float" array_size="3" default="1 1 1"/>
+          </attributes>
+        </element>
         <element name="joint" repeated="true" namespace="equality">
           <attributes>
             <attribute name="name" type="identifier"/>

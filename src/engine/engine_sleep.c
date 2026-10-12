@@ -454,6 +454,7 @@ int mj_wakeEquality(const mjModel* m, mjData* d) {
     switch (eqtype) {
     case mjEQ_CONNECT:
     case mjEQ_WELD:
+    case mjEQ_GENERAL:
       if (m->eq_objtype[i] == mjOBJ_BODY) {
         body1 = id1;
         body2 = id2;
@@ -752,6 +753,7 @@ static mjtSleepState mj_equalitySleepState(const mjModel* m, const mjData* d, in
   switch (eqtype) {
     case mjEQ_CONNECT:
     case mjEQ_WELD:
+    case mjEQ_GENERAL:
       objtype = m->eq_objtype[i];
       break;
     case mjEQ_JOINT:

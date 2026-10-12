@@ -227,6 +227,7 @@ ENUMS: Mapping[str, EnumDecl] = dict([
              ('mjEQ_FLEXVERT', 5),
              ('mjEQ_FLEXSTRAIN', 6),
              ('mjEQ_DISTANCE', 7),
+             ('mjEQ_GENERAL', 8),
          ]),
      )),
     ('mjtWrap',

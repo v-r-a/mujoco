@@ -40,6 +40,277 @@ using ::testing::Pointwise;
 
 using CoreConstraintTest = MujocoTest;
 
+// Noncoincident, nonaligned sites and unequal rotational scales expose frame,
+// sign, packed-row, and quaternion-derivative errors.
+static std::string GeneralEqualityXml(int mask, bool shared = false,
+                                      const std::string& attributes = "") {
+  std::string lock;
+  for (int i = 0; i < 6; i++) {
+    lock += (mask & (1 << i)) ? "1 " : "0 ";
+  }
+  std::string xml = R"(<mujoco>
+    <option gravity="0 0 0"><flag contact="disable"/></option>
+    <default><geom size=".1" mass="1"/></default>
+    <worldbody><site name="world"/>)";
+  if (shared) {
+    xml += "<body pos='.2 -.3 .1' quat='.9 .1 .2 .3'><freejoint/><geom/>";
+  }
+  xml += "<body name='a' pos='.3 -.2 .7' quat='.8 .2 -.3 .1'>";
+  xml += shared ? "<joint type='ball'/>" : "<freejoint/>";
+  xml += R"(<geom/><site name="s1" pos=".11 -.07 .09" quat=".9 .1 .3 -.2"/></body>
+    <body name="b" pos="-.2 .4 1.1" quat=".7 -.3 .2 .4">)";
+  xml += shared ? "<joint type='ball'/>" : "<freejoint/>";
+  xml += R"(<geom/><site name="s2" pos="-.05 .13 -.08" quat=".8 -.2 .1 .3"/></body>)";
+  if (shared) {
+    xml += "</body>";
+  }
+  // An unrelated DOF ensures sparse tests exercise a genuinely sparse matrix.
+  xml += R"(<body pos="4 0 0"><joint type="slide"/><geom/></body>
+    </worldbody><equality><general name="g" site1="s1" site2="s2" lock=")";
+  xml += lock + "\" torquescale=\".4 1.3 2.1\" " + attributes + "/></equality></mujoco>";
+  return xml;
+}
+
+static std::vector<mjtNum> EqualityJacobian(const mjModel* m, const mjData* d) {
+  std::vector<mjtNum> jac(d->ne * m->nv);
+  if (mj_isSparse(m)) {
+    mju_sparse2dense(jac.data(), d->efc_J, d->ne, m->nv, d->efc_J_rownnz,
+                     d->efc_J_rowadr, d->efc_J_colind);
+  } else {
+    mju_copy(jac.data(), d->efc_J, d->ne * m->nv);
+  }
+  return jac;
+}
+
+TEST_F(CoreConstraintTest, GeneralAllMasksDerivativesAndForces) {
+  const mjtNum h = MjTol(1e-6, 1e-3);
+  const mjtNum tol = MjTol(2e-8, 3e-3);
+  for (bool shared : {false, true}) {
+    for (int mask = 1; mask < 64; mask++) {
+      char error[1024];
+      auto m = LoadModelFromString(GeneralEqualityXml(mask, shared).c_str(), error, sizeof(error));
+      ASSERT_THAT(m.get(), NotNull()) << error;
+      for (mjtJacobian mode : {mjJAC_DENSE, mjJAC_SPARSE}) {
+        SCOPED_TRACE(testing::Message() << "mask=" << mask << " shared=" << shared << " mode=" << mode);
+        m->opt.jacobian = mode;
+        auto d = MakeData(m);
+        auto plus = MakeData(m);
+        auto minus = MakeData(m);
+        for (int j = 0; j < m->nv; j++) {
+          d->qvel[j] = .13 * (j % 5 - 2) + .07;
+        }
+        mj_forward(m.get(), d.get());
+        int rows = 0;
+        for (int k = 0; k < 6; k++) rows += (mask >> k) & 1;
+        ASSERT_EQ(d->ne, rows);
+        EXPECT_EQ(m->nemax, rows);
+        auto jac = EqualityJacobian(m.get(), d.get());
+
+        // Independent residual reference from rotation matrices, including the
+        // convention qrel = conj(q1) * q2 and packing in mask order.
+        int s1 = mj_name2id(m.get(), mjOBJ_SITE, "s1");
+        int s2 = mj_name2id(m.get(), mjOBJ_SITE, "s2");
+        mjtNum delta[3], local[3], q1[4], q2[4], qrel[4];
+        mju_sub3(delta, d->site_xpos+3*s2, d->site_xpos+3*s1);
+        mju_mulMatTVec(local, d->site_xmat+9*s1, delta, 3, 3);
+        mju_mat2Quat(q1, d->site_xmat+9*s1);
+        mju_mat2Quat(q2, d->site_xmat+9*s2);
+        mju_negQuat(q1, q1);
+        mju_mulQuat(qrel, q1, q2);
+        int row = 0;
+        for (int k = 0; k < 6; k++) {
+          if (mask & (1 << k)) {
+            mjtNum expected = k < 3 ? local[k] : m->eq_data[k+3]*qrel[k-2];
+            EXPECT_NEAR(d->efc_pos[row++], expected, tol);
+          }
+        }
+
+        // Differentiate residuals independently in every generalized direction.
+        std::vector<mjtNum> direction(m->nv, 0);
+        for (int j = 0; j < m->nv; j++) {
+          direction[j] = 1;
+          mj_copyData(plus.get(), m.get(), d.get());
+          mj_copyData(minus.get(), m.get(), d.get());
+          mj_integratePos(m.get(), plus->qpos, direction.data(), h);
+          mj_integratePos(m.get(), minus->qpos, direction.data(), -h);
+          mj_forward(m.get(), plus.get());
+          mj_forward(m.get(), minus.get());
+          for (int i = 0; i < rows; i++) {
+            EXPECT_NEAR(jac[i*m->nv+j], (plus->efc_pos[i]-minus->efc_pos[i])/(2*h), tol);
+          }
+          direction[j] = 0;
+        }
+
+        // Differentiate the actual Jacobian along the generalized velocity.
+        mj_copyData(plus.get(), m.get(), d.get());
+        mj_copyData(minus.get(), m.get(), d.get());
+        mj_integratePos(m.get(), plus->qpos, d->qvel, h);
+        mj_integratePos(m.get(), minus->qpos, d->qvel, -h);
+        mj_forward(m.get(), plus.get());
+        mj_forward(m.get(), minus.get());
+        auto jp = EqualityJacobian(m.get(), plus.get());
+        auto jm = EqualityJacobian(m.get(), minus.get());
+        std::vector<mjtNum> bias(rows, 0);
+        mj_Jdotv(m.get(), d.get(), bias.data());
+        for (int i = 0; i < rows; i++) {
+          mjtNum fd = 0;
+          for (int j = 0; j < m->nv; j++) {
+            fd -= (jp[i*m->nv+j]-jm[i*m->nv+j])/(2*h)*d->qvel[j];
+          }
+          EXPECT_NEAR(bias[i], fd, tol);
+        }
+
+        // Constraint wrenches must reproduce J^T lambda, including reference
+        // frame torques when the sites have nonzero separation.
+        for (int i = 0; i < rows; i++) d->efc_force[i] = .3 + .17*i;
+        std::vector<mjtNum> expected(m->nv), actual(m->nv, 0);
+        mj_mulJacTVec(m.get(), d.get(), expected.data(), d->efc_force);
+        mj_rnePostConstraint(m.get(), d.get());
+        for (int b = 1; b < m->nbody; b++) {
+          mj_applyFT(m.get(), d.get(), d->cfrc_ext+6*b+3, d->cfrc_ext+6*b,
+                     d->subtree_com+3*m->body_rootid[b], b, actual.data());
+        }
+        for (int j = 0; j < m->nv; j++) EXPECT_NEAR(actual[j], expected[j], tol);
+      }
+    }
+  }
+}
+
+TEST_F(CoreConstraintTest, GeneralXmlRoundTripAndValidation) {
+  char error[1024];
+  for (int mask = 1; mask < 64; mask++) {
+    auto m = LoadModelFromString(GeneralEqualityXml(mask).c_str(), error, sizeof(error));
+    ASSERT_THAT(m.get(), NotNull()) << error;
+    std::string saved = SaveAndReadXml(m.get());
+    auto copy = LoadModelFromString(saved.c_str(), error, sizeof(error));
+    ASSERT_THAT(copy.get(), NotNull()) << error;
+    EXPECT_EQ(copy->eq_type[0], mjEQ_GENERAL);
+    EXPECT_EQ(copy->eq_objtype[0], mjOBJ_SITE);
+    for (int k = 0; k < 9; k++) EXPECT_EQ(copy->eq_data[k], m->eq_data[k]);
+  }
+  const std::string valid = GeneralEqualityXml(63);
+  auto check_bad = [&](const std::string& from, const std::string& to) {
+    std::string xml = valid;
+    xml.replace(xml.find(from), from.size(), to);
+    auto m = LoadModelFromString(xml.c_str(), error, sizeof(error));
+    EXPECT_EQ(m.get(), nullptr) << xml;
+  };
+  check_bad("lock=\"1 1 1 1 1 1 \"", "");
+  check_bad("1 1 1 1 1 1 ", "0 0 0 0 0 0");
+  check_bad("1 1 1 1 1 1 ", "1 1 1 1 1");
+  check_bad("1 1 1 1 1 1 ", "1 1 1 1 1 1 1");
+  check_bad("1 1 1 1 1 1 ", "1 1 1 .5 1 1");
+  check_bad("1 1 1 1 1 1 ", "1 1 1 2 1 1");
+  check_bad("1 1 1 1 1 1 ", "1 1 1 -1 1 1");
+  check_bad("site2=\"s2\"", "");
+  check_bad("site2=\"s2\"", "site2=\"s1\"");
+  check_bad("site2=\"s2\"", "site2=\"missing\"");
+  check_bad("site2=\"s2\"", "body2=\"b\"");
+  check_bad(".4 1.3 2.1", "0 1 1");
+  check_bad(".4 1.3 2.1", "-1 1 1");
+  check_bad(".4 1.3 2.1", "1");
+  check_bad(".4 1.3 2.1", "inf 1 1");
+  {
+    MockWarningHandler warning;
+    warning.ExpectWarnings("XML contains a 'NaN'");
+    check_bad(".4 1.3 2.1", "nan 1 1");
+  }
+
+  std::string xml = valid;
+  const std::string scale = "torquescale=\".4 1.3 2.1\"";
+  xml.erase(xml.find(scale), scale.size());
+  auto m = LoadModelFromString(xml.c_str(), error, sizeof(error));
+  ASSERT_THAT(m.get(), NotNull()) << error;
+  for (int k = 6; k < 9; k++) EXPECT_EQ(m->eq_data[k], 1);
+}
+
+TEST_F(CoreConstraintTest, GeneralWorldReferenceAndInactive) {
+  char error[1024];
+  for (bool swap : {false, true}) {
+    std::string xml = GeneralEqualityXml(63);
+    std::string from = swap ? "site2=\"s2\"" : "site1=\"s1\"";
+    std::string to = swap ? "site2=\"world\"" : "site1=\"world\"";
+    xml.replace(xml.find(from), from.size(), to);
+    auto m = LoadModelFromString(xml.c_str(), error, sizeof(error));
+    ASSERT_THAT(m.get(), NotNull()) << error;
+    for (mjtJacobian mode : {mjJAC_DENSE, mjJAC_SPARSE}) {
+      m->opt.jacobian = mode;
+      auto d = MakeData(m);
+      mj_forward(m.get(), d.get());
+      EXPECT_EQ(d->ne, 6);
+      d->eq_active[0] = 0;
+      mj_forward(m.get(), d.get());
+      EXPECT_EQ(d->ne, 0);
+      d->eq_active[0] = 1;
+      mj_forward(m.get(), d.get());
+      EXPECT_EQ(d->ne, 6);
+    }
+  }
+}
+
+TEST_F(CoreConstraintTest, GeneralMixedEqualitiesAndBinaryRoundTrip) {
+  std::string xml = GeneralEqualityXml(9);  // tx, rx
+  xml.insert(xml.find("</equality>"), R"(
+    <weld site1="s1" site2="s2"/>
+    <general site1="s1" site2="s2" lock="0 1 0 0 0 1"/>
+    <connect site1="s1" site2="s2"/>
+    <general site1="s1" site2="s2" lock="0 0 1 0 1 0"/>)");
+  char error[1024];
+  auto m = LoadModelFromString(xml.c_str(), error, sizeof(error));
+  ASSERT_THAT(m.get(), NotNull()) << error;
+  std::vector<char> buffer(mj_sizeModel(m.get()));
+  mj_saveModel(m.get(), nullptr, buffer.data(), buffer.size());
+  MjModelPtr copy(mj_loadModelBuffer(buffer.data(), buffer.size()));
+  ASSERT_THAT(copy.get(), NotNull());
+  for (mjtJacobian mode : {mjJAC_DENSE, mjJAC_SPARSE}) {
+    copy->opt.jacobian = mode;
+    auto d = MakeData(copy);
+    mj_forward(copy.get(), d.get());
+    EXPECT_EQ(d->ne, 15);
+    const std::array<int, 15> ids = {0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4};
+    for (int i = 0; i < d->ne; i++) {
+      EXPECT_EQ(d->efc_id[i], ids[i]);
+      EXPECT_GT(d->efc_R[i], 0);
+    }
+    mjtNum translation = copy->body_invweight0[2*copy->site_bodyid[copy->eq_obj1id[0]]] +
+                         copy->body_invweight0[2*copy->site_bodyid[copy->eq_obj2id[0]]];
+    mjtNum rotation = copy->body_invweight0[2*copy->site_bodyid[copy->eq_obj1id[0]]+1] +
+                      copy->body_invweight0[2*copy->site_bodyid[copy->eq_obj2id[0]]+1];
+    for (int first : {0, 8, 13}) {
+      EXPECT_MJTNUM_EQ(d->efc_diagA[first], translation);
+      EXPECT_MJTNUM_EQ(d->efc_diagA[first+1], rotation);
+    }
+    for (int j = 0; j < copy->nv; j++) d->qvel[j] = .01*(j-4);
+    for (int step = 0; step < 100; step++) mj_step(copy.get(), d.get());
+    for (int i = 0; i < mjNWARNING; i++) EXPECT_EQ(d->warning[i].number, 0);
+    d->eq_active[2] = 0;
+    mj_forward(copy.get(), d.get());
+    EXPECT_EQ(d->ne, 13);
+  }
+}
+
+TEST_F(CoreConstraintTest, GeneralSleepingMocapConnectionWakes) {
+  constexpr char xml[] = R"(<mujoco>
+    <option gravity="0 0 0"><flag sleep="enable"/></option>
+    <worldbody>
+      <body mocap="true" pos=".5 0 0"><site name="target"/></body>
+      <body><freejoint/><geom size=".1"/><site name="box"/></body>
+    </worldbody>
+    <equality><general site1="target" site2="box" lock="1 1 1 1 1 0" active="false"/></equality>
+  </mujoco>)";
+  char error[1024];
+  auto m = LoadModelFromString(xml, error, sizeof(error));
+  ASSERT_THAT(m.get(), NotNull()) << error;
+  auto d = MakeData(m);
+  int steps = 0;
+  while (d->ntree_awake > 0 && steps++ < 10000) mj_step(m.get(), d.get());
+  ASSERT_EQ(d->ntree_awake, 0);
+  d->eq_active[0] = 1;
+  mj_step(m.get(), d.get());
+  EXPECT_EQ(d->ntree_awake, 1);
+  EXPECT_EQ(d->ne, 5);
+}
+
 // test formulas for penetration at rest
 TEST_F(CoreConstraintTest, RestPenetration) {
   constexpr char xml[] = R"(

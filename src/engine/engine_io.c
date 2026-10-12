@@ -16,6 +16,7 @@
 
 #include <inttypes.h>  // IWYU pragma: keep
 #include <limits.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -2070,6 +2071,34 @@ const char* mj_validateReferences(const mjModel* m) {
         return "Invalid model: eq_obj2id out of bounds.";
       }
       break;
+
+    case mjEQ_GENERAL: {
+      if (objtype != mjOBJ_SITE) {
+        return "Invalid model: general equality requires sites.";
+      }
+      if (obj1id < 0 || obj1id >= m->nsite || obj2id < 0 || obj2id >= m->nsite ||
+          obj1id == obj2id) {
+        return "Invalid model: general equality requires two distinct sites.";
+      }
+      const mjtNum* data = m->eq_data + mjNEQDATA*i;
+      int nlock = 0;
+      for (int j=0; j < 6; j++) {
+        if (data[j] != 0 && data[j] != 1) {
+          return "Invalid model: general lock must be binary.";
+        }
+        nlock += data[j] == 1;
+      }
+      if (!nlock) {
+        return "Invalid model: general lock must select at least one coordinate.";
+      }
+      for (int j=0; j < 3; j++) {
+        if (!isfinite(data[6+j]) || data[6+j] < 0 ||
+            (data[3+j] && data[6+j] == 0)) {
+          return "Invalid model: invalid general torquescale.";
+        }
+      }
+      break;
+    }
 
     case mjEQ_WELD:
     case mjEQ_CONNECT:

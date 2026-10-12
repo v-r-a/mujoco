@@ -6182,6 +6182,11 @@ void mjCEquality::ResolveReferences(const mjCModel* m) {
       throw mjCError(this, "connect constraint supports only sites and bodies");
     }
     object_type = objtype;
+  } else if (type == mjEQ_GENERAL) {
+    if (objtype != mjOBJ_SITE || name1_.empty() || name2_.empty()) {
+      throw mjCError(this, "general constraint requires site1 and site2 (site semantics only)");
+    }
+    object_type = mjOBJ_SITE;
   } else if (type == mjEQ_JOINT) {
     object_type = mjOBJ_JOINT;
   } else if (type == mjEQ_TENDON) {
@@ -6235,6 +6240,26 @@ void mjCEquality::Compile(void) {
 
   // find objects
   ResolveReferences(model);
+
+  if (type == mjEQ_GENERAL) {
+    int nlock = 0;
+    for (int i = 0; i < 6; i++) {
+      if (data[i] != 0 && data[i] != 1) {
+        throw mjCError(this, "general lock must contain exactly six binary values");
+      }
+      nlock += (data[i] == 1);
+    }
+    if (!nlock) {
+      throw mjCError(this, "general lock must select at least one coordinate");
+    }
+    for (int i = 0; i < 3; i++) {
+      if (!std::isfinite(data[6+i]) || data[6+i] < 0 ||
+          (data[3+i] && data[6+i] == 0)) {
+        throw mjCError(this,
+                      "general torquescale must be finite, nonnegative, and positive on locked axes");
+      }
+    }
+  }
 
   // make sure flex is not rigid, and has no conflicting stretch forces
   if (type == mjEQ_FLEX || type == mjEQ_FLEXVERT || type == mjEQ_FLEXSTRAIN) {
