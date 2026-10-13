@@ -1,0 +1,68 @@
+<mujoco model="U_joint_GENERAL_30deg">
+  <compiler angle="degree"/>
+  <option integrator="implicit" timestep="0.001" gravity="0 0 0"
+          jacobian="dense" solver="Newton" tolerance="1e-10">
+    <flag island="disable" sleep="disable"/>
+  </option>
+
+  <default>
+    <joint type="hinge" axis="0 0 1" damping="0.001"/>
+    <geom density="800" contype="0" conaffinity="0"/>
+    <site size="0.007" rgba="1 0.8 0 1"/>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.7 0.7 0.7" ambient="0.4 0.4 0.4"/>
+    <global azimuth="110" elevation="-35"/>
+  </visual>
+  <statistic center="0 0.05 0.2" extent="0.8"/>
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="1 1 0.01"
+          rgba="0.16 0.18 0.21 1"/>
+
+    <!-- Both body origins and equality sites coincide at the U-joint centre.
+         Local Z is the shaft axis. Each hinge represents a ground bearing.
+         Input axis: world +X. Output axis: (cos(30), sin(30), 0).
+         The rods extend away from the joint in opposite directions. -->
+    <body name="input_shaft" pos="0 0 0.2" axisangle="0 1 0 90">
+      <joint name="input_rotation"/>
+      <geom name="input_rod" type="capsule" size="0.012"
+            fromto="0 0 -0.30 0 0 0" rgba="0.1 0.65 0.8 1"/>
+      <geom name="input_box" type="box" pos="0 0 -0.18"
+            size="0.038 0.022 0.035" rgba="0.1 0.65 0.8 1"/>
+      <geom name="input_marker" type="box" pos="0.039 0 -0.18"
+            size="0.002 0.016 0.027" mass="0.0001" rgba="1 1 1 1"/>
+      <site name="input_U"/>
+    </body>
+
+    <!-- Orientation Rz(30 degrees)*Ry(90 degrees).
+         Relative to the input site, this is Rx(-30 degrees). -->
+    <body name="output_shaft" pos="0 0 0.2"
+          quat="0.6830127018922193 -0.1830127018922193 0.6830127018922193 0.1830127018922193">
+      <joint name="output_rotation"/>
+      <geom name="output_rod" type="capsule" size="0.012"
+            fromto="0 0 0 0 0 0.30" rgba="0.95 0.5 0.12 1"/>
+      <geom name="output_box" type="box" pos="0 0 0.18"
+            size="0.038 0.022 0.035" rgba="0.95 0.5 0.12 1"/>
+      <geom name="output_marker" type="box" pos="0.039 0 0.18"
+            size="0.002 0.016 0.027" mass="0.0001" rgba="1 1 1 1"/>
+      <site name="output_U"/>
+    </body>
+  </worldbody>
+
+  <!-- Custom mjEQ_GENERAL: coincident origins, two free relative rotations.
+       Requires the custom MuJoCo build supporting <general>. -->
+  <equality>
+    <general name="universal_joint" site1="input_U" site2="output_U"
+             lock="1 1 1 0 0 1" torquescale="5 5 5"
+             solref="0.01 1" solimp="0.95 0.99 0.001"/>
+  </equality>
+
+  <!-- Set input_speed to e.g. 2 rad/s in simulate's Control panel. -->
+  <actuator>
+    <velocity name="input_speed" joint="input_rotation" kv="0.05"
+              ctrllimited="true" ctrlrange="-6 6"/>
+  </actuator>
+</mujoco>
