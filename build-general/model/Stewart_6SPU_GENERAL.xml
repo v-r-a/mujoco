@@ -1,0 +1,220 @@
+<mujoco model="symmetric_6SPU_Stewart_GENERAL">
+  <compiler angle="radian"/>
+  <option integrator="implicit" timestep="0.001" jacobian="dense"
+          cone="elliptic" solver="Newton" tolerance="1e-10">
+    <flag island="disable" sleep="disable"/>
+  </option>
+
+  <default>
+    <joint damping="0.02"/>
+    <!-- Disable collisions between telescoping links and their mounting plates. -->
+    <geom type="capsule" size="0.012" density="800" contype="0" conaffinity="0"/>
+    <site size="0.01" rgba="1 0.8 0 1"/>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="135" elevation="-25"/>
+  </visual>
+  <statistic center="0 0 0.19" extent="0.9"/>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0"
+             width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
+  </asset>
+
+  <!-- All dimensions in metres. Branch order, starting at the moving platform:
+       platform -> spherical joint -> upper link -> actuated slider -> lower link
+       -> GENERAL U closure -> ground.
+
+       Six DISTINCT points on EACH plate, arranged in three symmetric pairs.
+       Base attachment radius = 0.32; top attachment radius = 0.22.
+       Base angles (deg): 15, 105, 135, 225, 255, 345.
+       Top angles  (deg): 45,  75, 165, 195, 285, 315.
+       Corresponding entries are connected. The pattern repeats every 120 degrees.
+       Base joint plane Z = 0.05; initial top joint plane Z = 0.35.
+       Disc radii: base 0.34, top 0.24; disc thicknesses: 0.03 and 0.02.
+
+       Each link is 0.20 long. Initial leg length = 0.3447660411745203.
+       The two coaxial links overlap; a positive slider coordinate extends the leg.
+       All six slider coordinates and actuator targets initially equal zero.
+
+       U closure mask: lock="1 1 1 0 0 1".
+       IMPORTANT: in the supplied quaternion-component GENERAL implementation,
+       this constrains q_rel,z = 0, giving a two-rotation closure. Exact physical
+       U joints require the perpendicular-axis residual, e.g. x_ground dot y_leg = 0.
+       The site frames below are initially aligned and also suit that residual. -->
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="1 1 0.01" material="grid"/>
+    <geom name="base_disc" type="cylinder" pos="0 0 0.015" size="0.34 0.015"
+          rgba="0.25 0.3 0.36 1"/>
+
+    <!-- Ground joint frames: local Z follows the initial leg from top to base. -->
+    <geom name="base_mount_1" type="cylinder" pos="0.3090962644125019 0.08282209443280664 0.04"
+          size="0.018 0.01" rgba="0.45 0.48 0.52 1"/>
+    <site name="ground_U_1" pos="0.3090962644125019 0.08282209443280664 0.05" quat="0.2153131524515156 0.8171415472317762 0.5170660931694713 0.1362446089337441"/>
+    <geom name="base_mount_2" type="cylinder" pos="-0.08282209443280668 0.3090962644125019 0.04"
+          size="0.018 0.01" rgba="0.45 0.48 0.52 1"/>
+    <site name="ground_U_2" pos="-0.08282209443280668 0.3090962644125019 0.05" quat="0.1183443553250522 0.4491322918057044 -0.8563631457362216 -0.2256478686910565"/>
+    <geom name="base_mount_3" type="cylinder" pos="-0.2262741699796952 0.2262741699796952 0.04"
+          size="0.018 0.01" rgba="0.45 0.48 0.52 1"/>
+    <site name="ground_U_3" pos="-0.2262741699796952 0.2262741699796952 0.05" quat="0.01033471623954087 0.03922159850444539 -0.9661983849751755 -0.2545889642587963"/>
+    <geom name="base_mount_4" type="cylinder" pos="-0.2262741699796953 -0.2262741699796952 0.04"
+          size="0.018 0.01" rgba="0.45 0.48 0.52 1"/>
+    <site name="ground_U_4" pos="-0.2262741699796953 -0.2262741699796952 0.05" quat="0.2545889642587963 0.9661983849751755 -0.03922159850444555 -0.01033471623954091"/>
+    <geom name="base_mount_5" type="cylinder" pos="-0.08282209443280661 -0.3090962644125019 0.04"
+          size="0.018 0.01" rgba="0.45 0.48 0.52 1"/>
+    <site name="ground_U_5" pos="-0.08282209443280661 -0.3090962644125019 0.05" quat="0.2256478686910564 0.8563631457362219 -0.4491322918057042 -0.1183443553250521"/>
+    <geom name="base_mount_6" type="cylinder" pos="0.3090962644125019 -0.08282209443280662 0.04"
+          size="0.018 0.01" rgba="0.45 0.48 0.52 1"/>
+    <site name="ground_U_6" pos="0.3090962644125019 -0.08282209443280662 0.05" quat="0.1362446089337441 0.5170660931694711 0.8171415472317762 0.2153131524515157"/>
+
+    <!-- Floating platform is the parent of all six separate S-P branches. -->
+    <body name="platform" pos="0 0 0.35">
+      <freejoint name="platform_free"/>
+      <geom name="platform_disc" type="cylinder" size="0.24 0.01" mass="1.0"
+            rgba="0.65 0.7 0.75 0.9"/>
+      <site name="platform_center" size="0.008"/>
+      <site name="platform_orientation" type="box" pos="0.08 0 0.012"
+            size="0.055 0.006 0.002" rgba="1 1 1 1"/>
+
+      <!-- Branch 1: S at the platform, then an actuated P along local +Z. -->
+      <body name="upper_link_1" pos="0.1555634918610405 0.1555634918610404 0" quat="0.2153131524515156 0.8171415472317762 0.5170660931694713 0.1362446089337441">
+        <joint name="top_ball_1" type="ball"/>
+        <site name="top_pivot_1" size="0.012"/>
+        <geom name="upper_rod_1" fromto="0 0 0 0 0 0.20" size="0.014"
+              rgba="0.1 0.65 0.8 1"/>
+        <body name="lower_link_1" pos="0 0 0.1447660411745203">
+          <joint name="slider_1" type="slide" axis="0 0 1" damping="3"
+                 limited="true" range="-0.04 0.04"/>
+          <geom name="lower_rod_1" fromto="0 0 0 0 0 0.20" size="0.009"
+                rgba="0.8 0.83 0.87 1"/>
+          <site name="leg_U_1" pos="0 0 0.20"/>
+        </body>
+      </body>
+
+      <!-- Branch 2: S at the platform, then an actuated P along local +Z. -->
+      <body name="upper_link_2" pos="0.05694018992255456 0.212503681783595 0" quat="0.1183443553250522 0.4491322918057044 -0.8563631457362216 -0.2256478686910565">
+        <joint name="top_ball_2" type="ball"/>
+        <site name="top_pivot_2" size="0.012"/>
+        <geom name="upper_rod_2" fromto="0 0 0 0 0 0.20" size="0.014"
+              rgba="0.1 0.65 0.8 1"/>
+        <body name="lower_link_2" pos="0 0 0.1447660411745204">
+          <joint name="slider_2" type="slide" axis="0 0 1" damping="3"
+                 limited="true" range="-0.04 0.04"/>
+          <geom name="lower_rod_2" fromto="0 0 0 0 0 0.20" size="0.009"
+                rgba="0.8 0.83 0.87 1"/>
+          <site name="leg_U_2" pos="0 0 0.20"/>
+        </body>
+      </body>
+
+      <!-- Branch 3: S at the platform, then an actuated P along local +Z. -->
+      <body name="upper_link_3" pos="-0.212503681783595 0.05694018992255463 0" quat="0.01033471623954087 0.03922159850444539 -0.9661983849751755 -0.2545889642587963">
+        <joint name="top_ball_3" type="ball"/>
+        <site name="top_pivot_3" size="0.012"/>
+        <geom name="upper_rod_3" fromto="0 0 0 0 0 0.20" size="0.014"
+              rgba="0.95 0.5 0.12 1"/>
+        <body name="lower_link_3" pos="0 0 0.1447660411745203">
+          <joint name="slider_3" type="slide" axis="0 0 1" damping="3"
+                 limited="true" range="-0.04 0.04"/>
+          <geom name="lower_rod_3" fromto="0 0 0 0 0 0.20" size="0.009"
+                rgba="0.8 0.83 0.87 1"/>
+          <site name="leg_U_3" pos="0 0 0.20"/>
+        </body>
+      </body>
+
+      <!-- Branch 4: S at the platform, then an actuated P along local +Z. -->
+      <body name="upper_link_4" pos="-0.212503681783595 -0.05694018992255458 0" quat="0.2545889642587963 0.9661983849751755 -0.03922159850444555 -0.01033471623954091">
+        <joint name="top_ball_4" type="ball"/>
+        <site name="top_pivot_4" size="0.012"/>
+        <geom name="upper_rod_4" fromto="0 0 0 0 0 0.20" size="0.014"
+              rgba="0.95 0.5 0.12 1"/>
+        <body name="lower_link_4" pos="0 0 0.1447660411745203">
+          <joint name="slider_4" type="slide" axis="0 0 1" damping="3"
+                 limited="true" range="-0.04 0.04"/>
+          <geom name="lower_rod_4" fromto="0 0 0 0 0 0.20" size="0.009"
+                rgba="0.8 0.83 0.87 1"/>
+          <site name="leg_U_4" pos="0 0 0.20"/>
+        </body>
+      </body>
+
+      <!-- Branch 5: S at the platform, then an actuated P along local +Z. -->
+      <body name="upper_link_5" pos="0.05694018992255447 -0.212503681783595 0" quat="0.2256478686910564 0.8563631457362219 -0.4491322918057042 -0.1183443553250521">
+        <joint name="top_ball_5" type="ball"/>
+        <site name="top_pivot_5" size="0.012"/>
+        <geom name="upper_rod_5" fromto="0 0 0 0 0 0.20" size="0.014"
+              rgba="0.65 0.35 0.8 1"/>
+        <body name="lower_link_5" pos="0 0 0.1447660411745202">
+          <joint name="slider_5" type="slide" axis="0 0 1" damping="3"
+                 limited="true" range="-0.04 0.04"/>
+          <geom name="lower_rod_5" fromto="0 0 0 0 0 0.20" size="0.009"
+                rgba="0.8 0.83 0.87 1"/>
+          <site name="leg_U_5" pos="0 0 0.20"/>
+        </body>
+      </body>
+
+      <!-- Branch 6: S at the platform, then an actuated P along local +Z. -->
+      <body name="upper_link_6" pos="0.1555634918610404 -0.1555634918610405 0" quat="0.1362446089337441 0.5170660931694711 0.8171415472317762 0.2153131524515157">
+        <joint name="top_ball_6" type="ball"/>
+        <site name="top_pivot_6" size="0.012"/>
+        <geom name="upper_rod_6" fromto="0 0 0 0 0 0.20" size="0.014"
+              rgba="0.65 0.35 0.8 1"/>
+        <body name="lower_link_6" pos="0 0 0.1447660411745204">
+          <joint name="slider_6" type="slide" axis="0 0 1" damping="3"
+                 limited="true" range="-0.04 0.04"/>
+          <geom name="lower_rod_6" fromto="0 0 0 0 0 0.20" size="0.009"
+                rgba="0.8 0.83 0.87 1"/>
+          <site name="leg_U_6" pos="0 0 0.20"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <!-- Four scalar rows per base closure: three translations and one rotation. -->
+  <equality>
+    <general name="base_U_1" site1="ground_U_1" site2="leg_U_1"
+             lock="1 1 1 0 0 1" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="base_U_2" site1="ground_U_2" site2="leg_U_2"
+             lock="1 1 1 0 0 1" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="base_U_3" site1="ground_U_3" site2="leg_U_3"
+             lock="1 1 1 0 0 1" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="base_U_4" site1="ground_U_4" site2="leg_U_4"
+             lock="1 1 1 0 0 1" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="base_U_5" site1="ground_U_5" site2="leg_U_5"
+             lock="1 1 1 0 0 1" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="base_U_6" site1="ground_U_6" site2="leg_U_6"
+             lock="1 1 1 0 0 1" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+  </equality>
+
+  <!-- Position targets are extension in metres from the initial leg length.
+       For example, ctrl=0.01 commands 1 cm extension. Start with small changes. -->
+  <actuator>
+    <position name="leg_extension_1" joint="slider_1" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.04 0.04"/>
+    <position name="leg_extension_2" joint="slider_2" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.04 0.04"/>
+    <position name="leg_extension_3" joint="slider_3" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.04 0.04"/>
+    <position name="leg_extension_4" joint="slider_4" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.04 0.04"/>
+    <position name="leg_extension_5" joint="slider_5" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.04 0.04"/>
+    <position name="leg_extension_6" joint="slider_6" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.04 0.04"/>
+  </actuator>
+
+  <keyframe>
+    <!-- Platform XYZ+quaternion, followed by each ball quaternion and slider. -->
+    <key name="home" qpos="0 0 0.35 1 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0" ctrl="0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>
