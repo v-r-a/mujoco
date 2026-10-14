@@ -1,0 +1,145 @@
+<mujoco model="symmetric_planar_3RRR_GENERAL">
+  <compiler angle="radian"/>
+  <option integrator="implicit" timestep="0.001" jacobian="dense"
+          cone="elliptic" solver="Newton" tolerance="1e-10">
+    <flag island="disable" sleep="disable"/>
+  </option>
+
+  <default>
+    <joint type="hinge" axis="0 0 1" damping="0.02"/>
+    <!-- Collisions disabled, including between links and platform. -->
+    <geom type="capsule" size="0.008" density="800"
+          contype="0" conaffinity="0"/>
+    <site size="0.01" rgba="1 0.8 0 1"/>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="90" elevation="-65"/>
+  </visual>
+  <statistic center="0 0 0.08" extent="0.85"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7"
+             rgb2="0 0 0" width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1"
+              texuniform="true" reflectance=".2"/>
+  </asset>
+
+  <!-- Geometry in metres:
+       Base circumradius = 0.32; platform attachment circumradius = 0.08.
+       Both triangles are centred at XY = (0, 0), with vertices at 0, 120, 240 deg.
+       Proximal and distal joint-to-joint lengths are all 0.20.
+       Platform disc radius = 0.10; thickness = 0.02; mechanism plane Z = 0.08.
+
+       Branch 1 starts at A1=(0.32, 0, 0.08), bends through
+       B1=(0.20, 0.16, 0.08), and ends at C1=(0.08, 0, 0.08).
+       Branches 2 and 3 are copies rotated by 120 and 240 degrees.
+       Fixed body rotations encode the assembled pose: all hinge qpos start at 0. -->
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="1 1 0.01" material="grid"/>
+
+    <!-- Fixed base triangle and three bearing pedestals. -->
+    <geom name="base_edge_12" fromto="0.32 0 0.025 -0.16 0.2771281292110204 0.025"
+          rgba="0.35 0.38 0.42 1"/>
+    <geom name="base_edge_23" fromto="-0.16 0.2771281292110204 0.025 -0.16 -0.2771281292110204 0.025"
+          rgba="0.35 0.38 0.42 1"/>
+    <geom name="base_edge_31" fromto="-0.16 -0.2771281292110204 0.025 0.32 0 0.025"
+          rgba="0.35 0.38 0.42 1"/>
+    <geom name="base_bearing_1" type="cylinder" pos="0.32 0 0.035"
+          size="0.025 0.035" rgba="0.35 0.38 0.42 1"/>
+    <geom name="base_bearing_2" type="cylinder" pos="-0.16 0.2771281292110204 0.035"
+          size="0.025 0.035" rgba="0.35 0.38 0.42 1"/>
+    <geom name="base_bearing_3" type="cylinder" pos="-0.16 -0.2771281292110204 0.035"
+          size="0.025 0.035" rgba="0.35 0.38 0.42 1"/>
+
+    <!-- Branch 1: actuated base hinge, passive elbow hinge. -->
+    <body name="proximal_1" pos="0.32 0 0.08" euler="0 0 2.214297435588181">
+      <joint name="base_joint_1"/>
+      <site name="base_pivot_1"/>
+      <geom name="proximal_rod_1" fromto="0 0 0 0.20 0 0" rgba="0.1 0.65 0.8 1"/>
+      <body name="distal_1" pos="0.20 0 0" euler="0 0 1.854590436003224">
+        <joint name="elbow_joint_1"/>
+        <site name="elbow_pivot_1"/>
+        <geom name="distal_rod_1" fromto="0 0 0 0.20 0 0" rgba="0.1 0.65 0.8 1"/>
+        <site name="distal_tip_1" pos="0.20 0 0"/>
+      </body>
+    </body>
+
+    <!-- Branch 2: branch 1 rotated by 120 degrees about the world Z axis. -->
+    <body name="proximal_2" pos="-0.16 0.2771281292110204 0.08"
+          euler="0 0 4.308692537981377">
+      <joint name="base_joint_2"/>
+      <site name="base_pivot_2"/>
+      <geom name="proximal_rod_2" fromto="0 0 0 0.20 0 0" rgba="0.95 0.5 0.12 1"/>
+      <body name="distal_2" pos="0.20 0 0" euler="0 0 1.854590436003224">
+        <joint name="elbow_joint_2"/>
+        <site name="elbow_pivot_2"/>
+        <geom name="distal_rod_2" fromto="0 0 0 0.20 0 0" rgba="0.95 0.5 0.12 1"/>
+        <site name="distal_tip_2" pos="0.20 0 0"/>
+      </body>
+    </body>
+
+    <!-- Branch 3: branch 1 rotated by 240 degrees about the world Z axis. -->
+    <body name="proximal_3" pos="-0.16 -0.2771281292110204 0.08"
+          euler="0 0 6.403087640374572">
+      <joint name="base_joint_3"/>
+      <site name="base_pivot_3"/>
+      <geom name="proximal_rod_3" fromto="0 0 0 0.20 0 0" rgba="0.65 0.35 0.8 1"/>
+      <body name="distal_3" pos="0.20 0 0" euler="0 0 1.854590436003224">
+        <joint name="elbow_joint_3"/>
+        <site name="elbow_pivot_3"/>
+        <geom name="distal_rod_3" fromto="0 0 0 0.20 0 0" rgba="0.65 0.35 0.8 1"/>
+        <site name="distal_tip_3" pos="0.20 0 0"/>
+      </body>
+    </body>
+
+    <!-- Independent floating platform; the equality constraints close the loops. -->
+    <body name="platform" pos="0 0 0.08">
+      <freejoint name="platform_free"/>
+      <geom name="platform_disc" type="cylinder" size="0.10 0.01"
+            rgba="0.65 0.7 0.75 0.9"/>
+      <site name="platform_anchor_1" pos="0.08 0 0"/>
+      <site name="platform_anchor_2" pos="-0.04 0.0692820323027551 0"/>
+      <site name="platform_anchor_3" pos="-0.04 -0.0692820323027551 0"/>
+      <!-- White stripe on the upper face indicates the platform's local +X. -->
+      <site name="platform_orientation" type="box" pos="0.035 0 0.011"
+            size="0.025 0.004 0.002" rgba="1 1 1 1"/>
+    </body>
+  </worldbody>
+
+  <!-- Third revolute joint of each RRR limb: translations and X/Y rotations
+       constrained; relative rotation about the common Z axis remains free.
+       Requires the custom MuJoCo build supporting mjEQ_GENERAL. -->
+  <equality>
+    <general name="platform_hinge_1" site1="distal_tip_1" site2="platform_anchor_1"
+             lock="1 1 1 1 1 0" torquescale="5 5 5"
+             solref="0.01 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_hinge_2" site1="distal_tip_2" site2="platform_anchor_2"
+             lock="1 1 1 1 1 0" torquescale="5 5 5"
+             solref="0.01 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_hinge_3" site1="distal_tip_3" site2="platform_anchor_3"
+             lock="1 1 1 1 1 0" torquescale="5 5 5"
+             solref="0.01 1" solimp="0.95 0.99 0.001"/>
+  </equality>
+
+  <!-- Position targets are in radians, measured from the assembled pose.
+       ctrl=(0,0,0) holds the initial configuration. Start with small changes. -->
+  <actuator>
+    <position name="base_position_1" joint="base_joint_1" kp="30" kv="1.5"
+              ctrllimited="true" ctrlrange="-0.4 0.4"/>
+    <position name="base_position_2" joint="base_joint_2" kp="30" kv="1.5"
+              ctrllimited="true" ctrlrange="-0.4 0.4"/>
+    <position name="base_position_3" joint="base_joint_3" kp="30" kv="1.5"
+              ctrllimited="true" ctrlrange="-0.4 0.4"/>
+  </actuator>
+
+  <keyframe>
+    <!-- Six hinge coordinates, then platform XYZ and quaternion (w,x,y,z). -->
+    <key name="home" qpos="0 0 0 0 0 0 0 0 0.08 1 0 0 0" ctrl="0 0 0"/>
+  </keyframe>
+</mujoco>
