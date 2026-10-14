@@ -1,0 +1,201 @@
+<mujoco model="inverted_delta_GENERAL">
+  <compiler angle="radian"/>
+  <option integrator="implicit" timestep="0.001" jacobian="dense"
+          cone="elliptic" solver="Newton" tolerance="1e-10" iterations="100">
+    <flag island="disable" sleep="disable"/>
+  </option>
+
+  <default>
+    <joint type="hinge" damping="0.005"/>
+    <geom type="capsule" size="0.008" density="800" contype="0" conaffinity="0"/>
+    <site size="0.009" rgba="1 0.8 0.15 1"/>
+  </default>
+  <visual>
+    <headlight diffuse="0.65 0.65 0.65" ambient="0.35 0.35 0.35" specular="0 0 0"/>
+    <global azimuth="135" elevation="-20"/>
+  </visual>
+  <statistic center="0 0 0.45" extent="1.0"/>
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1=".10 .17 .23" rgb2=".17 .25 .32"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".15"/>
+  </asset>
+
+  <!-- Inverted, symmetric Delta: the fixed circular base is ABOVE the platform.
+       SI units; branch azimuths 0, 120, 240 degrees.
+       Base motor radius 0.20; moving-platform anchor radius 0.08.
+       Proximal length 0.20; forearm rod length 0.35; pair separation 0.05.
+       Base pivots are at Z=0.65; upper arms start 45 degrees below horizontal.
+       Each proximal link is a rigid body drawn with TWO parallel capsules.
+       Each forearm is a parallelogram with TWO independent capsule rods.
+       Do not merge the two forearm rods into one rigid body.
+
+       Each rod has two intersecting passive hinge joints at its elbow end
+       (a physical universal joint, removing free axial rod spin) and a spherical
+       GENERAL equality at the platform end. Three proximal R joints are actuated.
+       The moving platform has a freejoint. Its level orientation follows from
+       the three paired-rod parallelograms; it is not separately welded to world.
+       At home, 21 velocity coordinates minus 18 independent equality rows = 3 DOF.
+       All tree-joint coordinates are initially zero. Controls are base-hinge
+       displacements in radians relative to this assembled home pose.
+       This model requires the custom mjEQ_GENERAL implementation.
+       Contact is disabled for this kinematic mechanism model. -->
+
+  <worldbody>
+    <light pos="0 0 1.4" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="1 1 0.01" material="grid"/>
+    <!-- Fixed overhead platform; attached directly to world. -->
+    <geom name="fixed_platform" type="cylinder" pos="0 0 0.68" size="0.22 0.018"
+          rgba="0.25 0.30 0.36 1"/>
+    <site name="base_center" pos="0 0 0.65" size="0.006" rgba="0.5 0.6 0.7 1"/>
+    <!-- Branch 1: actuated proximal hinge and paired-rod forearm. -->
+    <geom name="motor_1" type="cylinder" pos="0.2 0 0.65" zaxis="0 1 0"
+          size="0.025 0.039" rgba="0.38 0.42 0.47 1"/>
+    <body name="proximal_1" pos="0.2 0 0.65" quat="0.3826834323650899 0 0.9238795325112867 0">
+      <joint name="base_joint_1" axis="0 1 0" damping="0.15" armature="0.002"
+             limited="true" range="-0.35 0.35"/>
+      <geom name="proximal_1_a" fromto="0 -0.025 0 0 -0.025 0.2" size="0.012"
+            mass="0.10" rgba="0.10 0.65 0.80 1"/>
+      <geom name="proximal_1_b" fromto="0 0.025 0 0 0.025 0.2" size="0.012"
+            mass="0.10" rgba="0.10 0.65 0.80 1"/>
+      <geom name="elbow_axle_1" type="cylinder" pos="0 0 0.2" zaxis="0 1 0"
+            size="0.012 0.033" mass="0.025" rgba="0.65 0.68 0.73 1"/>
+      <body name="forearm_1_a" pos="0 -0.025 0.2" quat="0.686300117437897 0 0.7273184645014374 0">
+        <!-- Both axes intersect at the rod root. Local Z runs along the rod. -->
+        <joint name="elbow_1_a_u" axis="0 1 0"/>
+        <joint name="elbow_1_a_v" axis="1 0 0"/>
+        <geom name="forearm_rod_1_a" fromto="0 0 0 0 0 0.35" size="0.008"
+              mass="0.065" rgba="0.10 0.65 0.80 1"/>
+        <site name="elbow_center_1_a" pos="0 0 0" size="0.011" rgba="0.75 0.79 0.83 1"/>
+        <site name="forearm_tip_1_a" pos="0 0 0.35"/>
+      </body>
+      <body name="forearm_1_b" pos="0 0.025 0.2" quat="0.686300117437897 0 0.7273184645014374 0">
+        <!-- Both axes intersect at the rod root. Local Z runs along the rod. -->
+        <joint name="elbow_1_b_u" axis="0 1 0"/>
+        <joint name="elbow_1_b_v" axis="1 0 0"/>
+        <geom name="forearm_rod_1_b" fromto="0 0 0 0 0 0.35" size="0.008"
+              mass="0.065" rgba="0.10 0.65 0.80 1"/>
+        <site name="elbow_center_1_b" pos="0 0 0" size="0.011" rgba="0.75 0.79 0.83 1"/>
+        <site name="forearm_tip_1_b" pos="0 0 0.35"/>
+      </body>
+    </body>
+
+    <!-- Branch 2: actuated proximal hinge and paired-rod forearm. -->
+    <geom name="motor_2" type="cylinder" pos="-0.09999999999999996 0.1732050807568878 0.65" zaxis="-0.8660254037844387 -0.4999999999999998 0"
+          size="0.025 0.039" rgba="0.38 0.42 0.47 1"/>
+    <body name="proximal_2" pos="-0.09999999999999996 0.1732050807568878 0.65" quat="0.191341716182545 -0.8001031451912655 0.4619397662556435 0.3314135740355919">
+      <joint name="base_joint_2" axis="0 1 0" damping="0.15" armature="0.002"
+             limited="true" range="-0.35 0.35"/>
+      <geom name="proximal_2_a" fromto="0 -0.025 0 0 -0.025 0.2" size="0.012"
+            mass="0.10" rgba="0.95 0.50 0.12 1"/>
+      <geom name="proximal_2_b" fromto="0 0.025 0 0 0.025 0.2" size="0.012"
+            mass="0.10" rgba="0.95 0.50 0.12 1"/>
+      <geom name="elbow_axle_2" type="cylinder" pos="0 0 0.2" zaxis="0 1 0"
+            size="0.012 0.033" mass="0.025" rgba="0.65 0.68 0.73 1"/>
+      <body name="forearm_2_a" pos="0 -0.025 0.2" quat="0.686300117437897 0 0.7273184645014374 0">
+        <!-- Both axes intersect at the rod root. Local Z runs along the rod. -->
+        <joint name="elbow_2_a_u" axis="0 1 0"/>
+        <joint name="elbow_2_a_v" axis="1 0 0"/>
+        <geom name="forearm_rod_2_a" fromto="0 0 0 0 0 0.35" size="0.008"
+              mass="0.065" rgba="0.95 0.50 0.12 1"/>
+        <site name="elbow_center_2_a" pos="0 0 0" size="0.011" rgba="0.75 0.79 0.83 1"/>
+        <site name="forearm_tip_2_a" pos="0 0 0.35"/>
+      </body>
+      <body name="forearm_2_b" pos="0 0.025 0.2" quat="0.686300117437897 0 0.7273184645014374 0">
+        <!-- Both axes intersect at the rod root. Local Z runs along the rod. -->
+        <joint name="elbow_2_b_u" axis="0 1 0"/>
+        <joint name="elbow_2_b_v" axis="1 0 0"/>
+        <geom name="forearm_rod_2_b" fromto="0 0 0 0 0 0.35" size="0.008"
+              mass="0.065" rgba="0.95 0.50 0.12 1"/>
+        <site name="elbow_center_2_b" pos="0 0 0" size="0.011" rgba="0.75 0.79 0.83 1"/>
+        <site name="forearm_tip_2_b" pos="0 0 0.35"/>
+      </body>
+    </body>
+
+    <!-- Branch 3: actuated proximal hinge and paired-rod forearm. -->
+    <geom name="motor_3" type="cylinder" pos="-0.1000000000000001 -0.1732050807568877 0.65" zaxis="0.8660254037844384 -0.5000000000000004 0"
+          size="0.025 0.039" rgba="0.38 0.42 0.47 1"/>
+    <body name="proximal_3" pos="-0.1000000000000001 -0.1732050807568877 0.65" quat="0.1913417161825449 0.8001031451912657 0.4619397662556432 -0.3314135740355919">
+      <joint name="base_joint_3" axis="0 1 0" damping="0.15" armature="0.002"
+             limited="true" range="-0.35 0.35"/>
+      <geom name="proximal_3_a" fromto="0 -0.025 0 0 -0.025 0.2" size="0.012"
+            mass="0.10" rgba="0.65 0.35 0.80 1"/>
+      <geom name="proximal_3_b" fromto="0 0.025 0 0 0.025 0.2" size="0.012"
+            mass="0.10" rgba="0.65 0.35 0.80 1"/>
+      <geom name="elbow_axle_3" type="cylinder" pos="0 0 0.2" zaxis="0 1 0"
+            size="0.012 0.033" mass="0.025" rgba="0.65 0.68 0.73 1"/>
+      <body name="forearm_3_a" pos="0 -0.025 0.2" quat="0.686300117437897 0 0.7273184645014374 0">
+        <!-- Both axes intersect at the rod root. Local Z runs along the rod. -->
+        <joint name="elbow_3_a_u" axis="0 1 0"/>
+        <joint name="elbow_3_a_v" axis="1 0 0"/>
+        <geom name="forearm_rod_3_a" fromto="0 0 0 0 0 0.35" size="0.008"
+              mass="0.065" rgba="0.65 0.35 0.80 1"/>
+        <site name="elbow_center_3_a" pos="0 0 0" size="0.011" rgba="0.75 0.79 0.83 1"/>
+        <site name="forearm_tip_3_a" pos="0 0 0.35"/>
+      </body>
+      <body name="forearm_3_b" pos="0 0.025 0.2" quat="0.686300117437897 0 0.7273184645014374 0">
+        <!-- Both axes intersect at the rod root. Local Z runs along the rod. -->
+        <joint name="elbow_3_b_u" axis="0 1 0"/>
+        <joint name="elbow_3_b_v" axis="1 0 0"/>
+        <geom name="forearm_rod_3_b" fromto="0 0 0 0 0 0.35" size="0.008"
+              mass="0.065" rgba="0.65 0.35 0.80 1"/>
+        <site name="elbow_center_3_b" pos="0 0 0" size="0.011" rgba="0.75 0.79 0.83 1"/>
+        <site name="forearm_tip_3_b" pos="0 0 0.35"/>
+      </body>
+    </body>
+
+    <!-- Independent floating platform, suspended below the fixed base. -->
+    <body name="platform" pos="0 0 0.2758580505547715">
+      <freejoint name="platform_free"/>
+      <geom name="platform_disc" type="cylinder" size="0.10 0.010" mass="0.45"
+            rgba="0.65 0.70 0.76 1"/>
+      <site name="platform_center" size="0.006"/>
+      <site name="orientation_marker" type="box" pos="0.035 0 0.012"
+            size="0.040 0.006 0.002" rgba="1 1 1 1"/>
+      <site name="platform_anchor_1_a" pos="0.08 -0.025 0"/>
+      <site name="platform_anchor_1_b" pos="0.08 0.025 0"/>
+      <site name="platform_anchor_2_a" pos="-0.01834936490538901 0.08178203230275509 0"/>
+      <site name="platform_anchor_2_b" pos="-0.06165063509461095 0.05678203230275509 0"/>
+      <site name="platform_anchor_3_a" pos="-0.06165063509461099 -0.05678203230275507 0"/>
+      <site name="platform_anchor_3_b" pos="-0.01834936490538908 -0.08178203230275509 0"/>
+    </body>
+  </worldbody>
+
+  <!-- Six spherical closures: lock XYZ translation, leave all rotations free.
+       Two closures per branch preserve the forearm parallelogram geometry. -->
+  <equality>
+    <general name="platform_spherical_1_a" site1="forearm_tip_1_a"
+             site2="platform_anchor_1_a" lock="1 1 1 0 0 0"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_spherical_1_b" site1="forearm_tip_1_b"
+             site2="platform_anchor_1_b" lock="1 1 1 0 0 0"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_spherical_2_a" site1="forearm_tip_2_a"
+             site2="platform_anchor_2_a" lock="1 1 1 0 0 0"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_spherical_2_b" site1="forearm_tip_2_b"
+             site2="platform_anchor_2_b" lock="1 1 1 0 0 0"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_spherical_3_a" site1="forearm_tip_3_a"
+             site2="platform_anchor_3_a" lock="1 1 1 0 0 0"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_spherical_3_b" site1="forearm_tip_3_b"
+             site2="platform_anchor_3_b" lock="1 1 1 0 0 0"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+  </equality>
+
+  <actuator>
+    <position name="base_position_1" joint="base_joint_1" kp="200" kv="8"
+              ctrllimited="true" ctrlrange="-0.25 0.25"/>
+    <position name="base_position_2" joint="base_joint_2" kp="200" kv="8"
+              ctrllimited="true" ctrlrange="-0.25 0.25"/>
+    <position name="base_position_3" joint="base_joint_3" kp="200" kv="8"
+              ctrllimited="true" ctrlrange="-0.25 0.25"/>
+  </actuator>
+
+  <keyframe>
+    <!-- 15 scalar tree-joint positions, then free-platform XYZ and wxyz.
+         Zero control holds home; try small commands, e.g. 0.03 -0.02 0.01 rad. -->
+    <key name="home" qpos="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2758580505547715 1 0 0 0" ctrl="0 0 0"/>
+  </keyframe>
+</mujoco>
