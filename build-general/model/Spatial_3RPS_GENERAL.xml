@@ -1,0 +1,150 @@
+<mujoco model="symmetric_3RPS_GENERAL">
+  <compiler angle="radian"/>
+  <option integrator="implicit" timestep="0.001" jacobian="dense"
+          cone="elliptic" solver="Newton" tolerance="1e-10">
+    <flag island="disable" sleep="disable"/>
+  </option>
+
+  <default>
+    <joint type="hinge" axis="0 1 0" damping="0.02"/>
+    <!-- Collisions disabled between links, joints, and mounting plates. -->
+    <geom type="capsule" size="0.009" density="800" contype="0" conaffinity="0"/>
+    <site size="0.01" rgba="1 0.8 0 1"/>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="135" elevation="-25"/>
+  </visual>
+  <statistic center="0 0 0.19" extent="1.0"/>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0"
+             width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
+  </asset>
+
+  <!-- Symmetric spatial 3-RPS parallel manipulator; dimensions in metres.
+       Three separate branches start from ground at angles 0, 120, 240 degrees.
+       Base attachment radius = 0.32; platform attachment radius = 0.22.
+       Base joint plane Z = 0.05; initial platform joint plane Z = 0.35.
+       Circular plate radii: base 0.34, platform 0.24; thicknesses: 0.03 and 0.02.
+       Each branch remains in its radial vertical plane. Base R axes are tangent
+       to the base circle: (-sin(phi), cos(phi), 0), encoded as body-local Y.
+       All six tree-joint coordinates initially equal zero; fixed body rotations
+       and offsets encode the assembled pose. The platform has a free joint.
+       The platform S joints use GENERAL lock="1 1 1 0 0 0": only translations
+       are constrained, leaving all three relative rotations free. -->
+
+  <!-- Branch order: ground -> passive R -> proximal link -> actuated P
+       -> distal link -> spherical equality -> floating platform.
+       Both coaxial links are 0.20 long and overlap.
+       Initial R-to-S distance = 0.3162277660168379.
+       Slider coordinate is extension from this distance, positive toward the platform.
+       Slider travel = +/-0.05 m; no actuator is attached to the base R joints. -->
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="1 1 0.01" material="grid"/>
+    <geom name="base_disc" type="cylinder" pos="0 0 0.015" size="0.34 0.015"
+          rgba="0.25 0.3 0.36 1"/>
+    <geom name="base_mount_1" type="cylinder" pos="0.32 0 0.04"
+          size="0.025 0.01" rgba="0.45 0.48 0.52 1"/>
+    <geom name="base_pin_1" type="cylinder" pos="0.32 0 0.05" zaxis="0 1 0"
+          size="0.012 0.027" rgba="0.65 0.68 0.72 1"/>
+    <geom name="base_mount_2" type="cylinder" pos="-0.1599999999999999 0.2771281292110204 0.04"
+          size="0.025 0.01" rgba="0.45 0.48 0.52 1"/>
+    <geom name="base_pin_2" type="cylinder" pos="-0.1599999999999999 0.2771281292110204 0.05" zaxis="-0.8660254037844387 -0.4999999999999998 0"
+          size="0.012 0.027" rgba="0.65 0.68 0.72 1"/>
+    <geom name="base_mount_3" type="cylinder" pos="-0.1600000000000001 -0.2771281292110203 0.04"
+          size="0.025 0.01" rgba="0.45 0.48 0.52 1"/>
+    <geom name="base_pin_3" type="cylinder" pos="-0.1600000000000001 -0.2771281292110203 0.05" zaxis="0.8660254037844384 -0.5000000000000004 0"
+          size="0.012 0.027" rgba="0.65 0.68 0.72 1"/>
+
+    <!-- Branch 1; passive base revolute joint. -->
+    <body name="proximal_1" pos="0.32 0 0.05" quat="0.9870874576374967 0 -0.1601822430069672 0">
+      <joint name="base_joint_1" type="hinge" axis="0 1 0"/>
+      <site name="base_pivot_1"/>
+      <geom name="proximal_rod_1" fromto="0 0 0 0 0 0.20" size="0.014"
+            rgba="0.1 0.65 0.8 1"/>
+      <body name="distal_1" pos="0 0 0.1162277660168379">
+        <joint name="slider_1" type="slide" axis="0 0 1" damping="3"
+               limited="true" range="-0.05 0.05"/>
+        <geom name="distal_rod_1" fromto="0 0 0 0 0 0.20" size="0.009"
+              rgba="0.8 0.83 0.87 1"/>
+        <site name="distal_tip_1" pos="0 0 0.20"/>
+      </body>
+    </body>
+
+    <!-- Branch 2; passive base revolute joint. -->
+    <body name="proximal_2" pos="-0.1599999999999999 0.2771281292110204 0.05" quat="0.4935437288187485 0.1387218916792058 -0.08009112150348363 0.854842814071068">
+      <joint name="base_joint_2" type="hinge" axis="0 1 0"/>
+      <site name="base_pivot_2"/>
+      <geom name="proximal_rod_2" fromto="0 0 0 0 0 0.20" size="0.014"
+            rgba="0.95 0.5 0.12 1"/>
+      <body name="distal_2" pos="0 0 0.1162277660168379">
+        <joint name="slider_2" type="slide" axis="0 0 1" damping="3"
+               limited="true" range="-0.05 0.05"/>
+        <geom name="distal_rod_2" fromto="0 0 0 0 0 0.20" size="0.009"
+              rgba="0.8 0.83 0.87 1"/>
+        <site name="distal_tip_2" pos="0 0 0.20"/>
+      </body>
+    </body>
+
+    <!-- Branch 3; passive base revolute joint. -->
+    <body name="proximal_3" pos="-0.1600000000000001 -0.2771281292110203 0.05" quat="0.4935437288187481 -0.1387218916792059 -0.08009112150348358 -0.8548428140710682">
+      <joint name="base_joint_3" type="hinge" axis="0 1 0"/>
+      <site name="base_pivot_3"/>
+      <geom name="proximal_rod_3" fromto="0 0 0 0 0 0.20" size="0.014"
+            rgba="0.65 0.35 0.8 1"/>
+      <body name="distal_3" pos="0 0 0.1162277660168379">
+        <joint name="slider_3" type="slide" axis="0 0 1" damping="3"
+               limited="true" range="-0.05 0.05"/>
+        <geom name="distal_rod_3" fromto="0 0 0 0 0 0.20" size="0.009"
+              rgba="0.8 0.83 0.87 1"/>
+        <site name="distal_tip_3" pos="0 0 0.20"/>
+      </body>
+    </body>
+
+    <!-- Independent floating platform, connected to all three branch tips. -->
+    <body name="platform" pos="0 0 0.35">
+      <freejoint name="platform_free"/>
+      <geom name="platform_disc" type="cylinder" size="0.24 0.01" mass="1.0"
+            rgba="0.65 0.7 0.75 0.9"/>
+      <site name="platform_anchor_1" pos="0.22 0 0"/>
+      <site name="platform_anchor_2" pos="-0.1099999999999999 0.1905255888325765 0"/>
+      <site name="platform_anchor_3" pos="-0.1100000000000001 -0.1905255888325764 0"/>
+      <site name="platform_center" size="0.008"/>
+      <site name="platform_orientation" type="box" pos="0.08 0 0.012"
+            size="0.055 0.006 0.002" rgba="1 1 1 1"/>
+    </body>
+  </worldbody>
+
+  <!-- Spherical loop closures; requires the custom mjEQ_GENERAL build. -->
+  <equality>
+    <general name="platform_spherical_1" site1="distal_tip_1" site2="platform_anchor_1"
+             lock="1 1 1 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_spherical_2" site1="distal_tip_2" site2="platform_anchor_2"
+             lock="1 1 1 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_spherical_3" site1="distal_tip_3" site2="platform_anchor_3"
+             lock="1 1 1 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+  </equality>
+
+  <!-- Controls are metres of slider extension relative to the initial pose.
+       ctrl=(0,0,0) commands the home configuration. Start with small changes. -->
+  <actuator>
+    <position name="leg_extension_1" joint="slider_1" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.05 0.05"/>
+    <position name="leg_extension_2" joint="slider_2" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.05 0.05"/>
+    <position name="leg_extension_3" joint="slider_3" kp="5000" kv="100"
+              ctrllimited="true" ctrlrange="-0.05 0.05"/>
+  </actuator>
+
+  <keyframe>
+    <!-- Six branch joint coordinates, then platform XYZ and quaternion (w,x,y,z). -->
+    <key name="home" qpos="0 0 0 0 0 0 0 0 0.35 1 0 0 0" ctrl="0 0 0"/>
+  </keyframe>
+</mujoco>
