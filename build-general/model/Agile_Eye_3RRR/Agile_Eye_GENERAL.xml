@@ -1,0 +1,174 @@
+<mujoco model="Agile_Eye_spherical_3RRR_GENERAL">
+  <compiler angle="radian" meshdir="assets" inertiafromgeom="false"/>
+  <option integrator="implicit" timestep="0.001" jacobian="dense"
+          cone="elliptic" solver="Newton" tolerance="1e-10">
+    <flag island="disable" sleep="disable"/>
+  </option>
+  <default>
+    <joint type="hinge" damping="0.03"/>
+    <geom contype="0" conaffinity="0"/>
+    <site size="0.008" rgba="1 0.8 0.1 1"/>
+  </default>
+  <visual>
+    <headlight diffuse="0.65 0.65 0.65" ambient="0.35 0.35 0.35" specular="0.2 0.2 0.2"/>
+    <global azimuth="135" elevation="-25"/>
+  </visual>
+  <statistic center="0 0 0.26" extent="0.70"/>
+  <asset>
+    <!-- CAD/STL coordinates are millimetres; convert to metres here. -->
+    <mesh name="proximal_arc" file="proximal_arc.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="distal_arc" file="distal_arc.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="platform_mesh" file="platform.stl" scale="0.001 0.001 0.001"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1=".12 .16 .20" rgb2=".18 .23 .28"/>
+    <material name="grid" texture="grid" texrepeat="2 2" texuniform="true"/>
+  </asset>
+
+  <!-- Idealized Agile Eye geometry, after Bonev/Chablat/Wenger (2006/2007).
+       Three R-R-R limbs; adjacent axes are orthogonal and all axes intersect O.
+       Canonical home axes (joint-axis sign does not change a hinge):
+         limb 1: base X, elbow Z, platform Y;
+         limb 2: base Y, elbow X, platform Z;
+         limb 3: base Z, elbow Y, platform X.
+       All limb coordinate origins are O; bearing positions lie on their axes.
+       A fixed mounting rotation puts the three base actuators below O.
+       O is initially (0,0,0.30) m. The platform is floating; closure constrains
+       its origin to O. No extra ball joint or weld is added to the platform.
+
+       The proximal STL is a 90-degree arc of radius 0.20 m from -X to +Z.
+       The distal STL is a 90-degree arc of radius 0.16 m from +Z to +Y,
+       with an offset coaxial elbow bearing. Each STL is reused three times.
+       Explicit CAD-solid inertias avoid using convex hulls of the curved meshes.
+       Contacts are disabled, consistent with the earlier mechanism models. -->
+  <worldbody>
+    <light pos="0.2 -0.3 1.2" dir="-0.1 0.1 -1" directional="true"/>
+    <geom name="floor" type="plane" size="1 1 0.01" material="grid"/>
+    <geom name="base_disc" type="cylinder" pos="0 0 0.015" size="0.25 0.015"
+          rgba="0.22 0.26 0.31 1"/>
+    <geom name="motor_support_1" type="capsule" fromto="-0.1869777170324493 0 0.03 -0.1869777170324493 0 0.1477867883555757"
+          size="0.022" rgba="0.35 0.39 0.44 1"/>
+    <geom name="motor_housing_1" type="cylinder" pos="-0.1869777170324493 0 0.1677867883555757" zaxis="0.816496580927726 0 0.5773502691896258"
+          size="0.028 0.022" rgba="0.17 0.19 0.22 1"/>
+    <geom name="base_spindle_1" type="cylinder" pos="-0.1665653025092561 0 0.1822205450853163" zaxis="0.816496580927726 0 0.5773502691896258"
+          size="0.005 0.025" rgba="0.72 0.75 0.78 1"/>
+    <geom name="motor_support_2" type="capsule" fromto="0.09348885851622464 -0.1619274528917194 0.03 0.09348885851622464 -0.1619274528917194 0.1477867883555757"
+          size="0.022" rgba="0.35 0.39 0.44 1"/>
+    <geom name="motor_housing_2" type="cylinder" pos="0.09348885851622464 -0.1619274528917194 0.1677867883555757" zaxis="-0.4082482904638631 0.7071067811865475 0.5773502691896258"
+          size="0.028 0.022" rgba="0.17 0.19 0.22 1"/>
+    <geom name="base_spindle_2" type="cylinder" pos="0.08328265125462807 -0.1442497833620557 0.1822205450853163" zaxis="-0.4082482904638631 0.7071067811865475 0.5773502691896258"
+          size="0.005 0.025" rgba="0.72 0.75 0.78 1"/>
+    <geom name="motor_support_3" type="capsule" fromto="0.09348885851622464 0.1619274528917194 0.03 0.09348885851622464 0.1619274528917194 0.1477867883555757"
+          size="0.022" rgba="0.35 0.39 0.44 1"/>
+    <geom name="motor_housing_3" type="cylinder" pos="0.09348885851622464 0.1619274528917194 0.1677867883555757" zaxis="-0.4082482904638631 -0.7071067811865475 0.5773502691896258"
+          size="0.028 0.022" rgba="0.17 0.19 0.22 1"/>
+    <geom name="base_spindle_3" type="cylinder" pos="0.08328265125462807 0.1442497833620557 0.1822205450853163" zaxis="-0.4082482904638631 -0.7071067811865475 0.5773502691896258"
+          size="0.005 0.025" rgba="0.72 0.75 0.78 1"/>
+
+    <!-- Limb 1: actuated base R, passive elbow R, then platform hinge closure. -->
+    <body name="proximal_1" pos="0 0 0.3" quat="0.8804762392171495 0.3647051996310008 -0.2798481423331213 0.1159168959592951">
+      <inertial pos="-0.1192783925399237 -5.719686469057101e-13 0.1192783925399237" mass="0.1141768699457492"
+                fullinertia="0.0006685410804903935 0.001329471705557568 0.0006685410804903943 0 -0.0005981822390892709 0"/>
+      <joint name="base_joint_1" axis="1 0 0" pos="-0.2 0 0"/>
+      <geom name="proximal_mesh_1" type="mesh" mesh="proximal_arc" rgba="0.08 0.61 0.74 1"/>
+      <site name="base_pivot_1" pos="-0.2 0 0" zaxis="1 0 0"/>
+      <body name="distal_1">
+        <inertial pos="-1.454901338432551e-10 0.09146774767972292 0.09912668057494273" mass="0.1010879499682482"
+                  fullinertia="0.0008516964076165207 0.0004429655458021314 0.0004161049368746405 -3.090477113137445e-14 -6.633447918342733e-14 0.0003918055073850201"/>
+        <joint name="elbow_joint_1" axis="0 0 1" pos="0 0 0.2"/>
+        <geom name="distal_mesh_1" type="mesh" mesh="distal_arc" rgba="0.08 0.61 0.74 1"/>
+        <!-- Decorative spindle; its small mass is omitted from the CAD inertia. -->
+        <geom name="elbow_spindle_1" type="cylinder" pos="0 0 0.187"
+              size="0.005 0.032" rgba="0.72 0.75 0.78 1"/>
+        <site name="elbow_pivot_1" pos="0 0 0.2"/>
+        <site name="distal_hinge_1" pos="0 0.16 0" quat="0.7071067811865477 -0.7071067811865475 0 0"/>
+      </body>
+    </body>
+
+    <!-- Limb 2: actuated base R, passive elbow R, then platform hinge closure. -->
+    <body name="proximal_2" pos="0 0 0.3" quat="0.3398511429799874 0.4247082002778669 0.1759198966061612 0.8204732385702833">
+      <inertial pos="-0.1192783925399237 -5.719686469057101e-13 0.1192783925399237" mass="0.1141768699457492"
+                fullinertia="0.0006685410804903935 0.001329471705557568 0.0006685410804903943 0 -0.0005981822390892709 0"/>
+      <joint name="base_joint_2" axis="1 0 0" pos="-0.2 0 0"/>
+      <geom name="proximal_mesh_2" type="mesh" mesh="proximal_arc" rgba="0.9399999999999999 0.47 0.12 1"/>
+      <site name="base_pivot_2" pos="-0.2 0 0" zaxis="1 0 0"/>
+      <body name="distal_2">
+        <inertial pos="-1.454901338432551e-10 0.09146774767972292 0.09912668057494273" mass="0.1010879499682482"
+                  fullinertia="0.0008516964076165207 0.0004429655458021314 0.0004161049368746405 -3.090477113137445e-14 -6.633447918342733e-14 0.0003918055073850201"/>
+        <joint name="elbow_joint_2" axis="0 0 1" pos="0 0 0.2"/>
+        <geom name="distal_mesh_2" type="mesh" mesh="distal_arc" rgba="0.9399999999999999 0.47 0.12 1"/>
+        <!-- Decorative spindle; its small mass is omitted from the CAD inertia. -->
+        <geom name="elbow_spindle_2" type="cylinder" pos="0 0 0.187"
+              size="0.005 0.032" rgba="0.72 0.75 0.78 1"/>
+        <site name="elbow_pivot_2" pos="0 0 0.2"/>
+        <site name="distal_hinge_2" pos="0 0.16 0" quat="0.7071067811865477 -0.7071067811865475 0 0"/>
+      </body>
+    </body>
+
+    <!-- Limb 3: actuated base R, passive elbow R, then platform hinge closure. -->
+    <body name="proximal_3" pos="0 0 0.3" quat="0.540625096237162 -0.06000300064686603 -0.4557680389392825 -0.7045563426109882">
+      <inertial pos="-0.1192783925399237 -5.719686469057101e-13 0.1192783925399237" mass="0.1141768699457492"
+                fullinertia="0.0006685410804903935 0.001329471705557568 0.0006685410804903943 0 -0.0005981822390892709 0"/>
+      <joint name="base_joint_3" axis="1 0 0" pos="-0.2 0 0"/>
+      <geom name="proximal_mesh_3" type="mesh" mesh="proximal_arc" rgba="0.59 0.33 0.77 1"/>
+      <site name="base_pivot_3" pos="-0.2 0 0" zaxis="1 0 0"/>
+      <body name="distal_3">
+        <inertial pos="-1.454901338432551e-10 0.09146774767972292 0.09912668057494273" mass="0.1010879499682482"
+                  fullinertia="0.0008516964076165207 0.0004429655458021314 0.0004161049368746405 -3.090477113137445e-14 -6.633447918342733e-14 0.0003918055073850201"/>
+        <joint name="elbow_joint_3" axis="0 0 1" pos="0 0 0.2"/>
+        <geom name="distal_mesh_3" type="mesh" mesh="distal_arc" rgba="0.59 0.33 0.77 1"/>
+        <!-- Decorative spindle; its small mass is omitted from the CAD inertia. -->
+        <geom name="elbow_spindle_3" type="cylinder" pos="0 0 0.187"
+              size="0.005 0.032" rgba="0.72 0.75 0.78 1"/>
+        <site name="elbow_pivot_3" pos="0 0 0.2"/>
+        <site name="distal_hinge_3" pos="0 0.16 0" quat="0.7071067811865477 -0.7071067811865475 0 0"/>
+      </body>
+    </body>
+
+    <body name="platform" pos="0 0 0.3" quat="0.8804762392171495 0.3647051996310008 -0.2798481423331213 0.1159168959592951">
+      <freejoint name="platform_free"/>
+      <inertial pos="0.05122682629272634 0.05122682627869004 0.05122682627874973" mass="0.25024836366529"
+                fullinertia="0.0009383317761650291 0.0009383317761949226 0.0009383317761978007 0.0002268890479826743 0.0002268890479800252 0.0002268890477772382"/>
+      <geom name="platform_cad" type="mesh" mesh="platform_mesh" rgba="0.66 0.71 0.76 1"/>
+      <site name="platform_hinge_1" pos="0 0.16 0" quat="0.7071067811865477 -0.7071067811865475 0 0"/>
+      <geom name="platform_spindle_1" type="cylinder" pos="0 0.147 0" zaxis="0 1 0"
+            size="0.005 0.032" rgba="0.72 0.75 0.78 1"/>
+      <site name="platform_hinge_2" pos="0 0 0.16" quat="0.7071067811865475 0 0 0.7071067811865475"/>
+      <geom name="platform_spindle_2" type="cylinder" pos="0 0 0.147" zaxis="0 0 1"
+            size="0.005 0.032" rgba="0.72 0.75 0.78 1"/>
+      <site name="platform_hinge_3" pos="0.16 0 0" quat="0 -0.7071067811865475 0 -0.7071067811865475"/>
+      <geom name="platform_spindle_3" type="cylinder" pos="0.147 0 0" zaxis="1 0 0"
+            size="0.005 0.032" rgba="0.72 0.75 0.78 1"/>
+      <site name="orientation_mark" type="box" pos="0.07884284263351969 0.04577473110594679 0.04577473110594679" quat="0.8804762392171495 -0.3647051996310008 0.2798481423331213 -0.1159168959592951"
+            size="0.025 0.004 0.002" rgba="1 1 1 1"/>
+      <site name="spherical_centre" size="0.006" rgba="1 0.85 0.1 1"/>
+    </body>
+  </worldbody>
+
+  <!-- Site local Z follows the platform joint axis. Lock translations and
+       relative X/Y rotations; leave rotation about local Z free. -->
+  <equality>
+    <general name="platform_R_1" site1="distal_hinge_1" site2="platform_hinge_1"
+             lock="1 1 1 1 1 0" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_R_2" site1="distal_hinge_2" site2="platform_hinge_2"
+             lock="1 1 1 1 1 0" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <general name="platform_R_3" site1="distal_hinge_3" site2="platform_hinge_3"
+             lock="1 1 1 1 1 0" torquescale="5 5 5"
+             solref="0.005 1" solimp="0.95 0.99 0.001"/>
+  </equality>
+
+  <!-- Base motor targets in radians from the assembled home pose. -->
+  <actuator>
+    <position name="base_position_1" joint="base_joint_1" kp="80" kv="3"
+              ctrllimited="true" ctrlrange="-0.6 0.6"/>
+    <position name="base_position_2" joint="base_joint_2" kp="80" kv="3"
+              ctrllimited="true" ctrlrange="-0.6 0.6"/>
+    <position name="base_position_3" joint="base_joint_3" kp="80" kv="3"
+              ctrllimited="true" ctrlrange="-0.6 0.6"/>
+  </actuator>
+  <keyframe>
+    <!-- Six hinge coordinates, followed by platform XYZ and quaternion. -->
+    <key name="home" qpos="0 0 0 0 0 0 0 0 0.3 0.8804762392171495 0.3647051996310008 -0.2798481423331213 0.1159168959592951" ctrl="0 0 0"/>
+  </keyframe>
+</mujoco>
